@@ -22,6 +22,7 @@ up:
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d
 
 build-up:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --remove-orphans
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d --build
 
 down:

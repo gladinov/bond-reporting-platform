@@ -164,13 +164,16 @@ services:
       - myapp_network
 
   bond-report-service:
-    build: ../services/bonds-report-service
+    build:
+      context: ../services/bonds-report-service
+      dockerfile: deployments/docker/app.Dockerfile
     restart: unless-stopped
     stop_grace_period: 15s
-    container_name: bond-report-service-app
     depends_on:
       postgres-service-db:
         condition: service_healthy
+      bond-report-migrator:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
     environment:
@@ -201,9 +204,30 @@ services:
     networks:
       - myapp_network
 
+  bond-report-migrator:
+    build:
+      context: ../services/bonds-report-service
+      dockerfile: deployments/docker/migrator.Dockerfile
+    restart: no
+    depends_on:
+      postgres-service-db:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV}
+      MIGRATIONS_PATH: "/migrations"
+      POSTGRES_HOST: postgres-service-db
+      POSTGRES_SERVICE_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_SERVICE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_SERVICE_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_SERVICE_DB}
+      PGUSER: ${SERVICE_PGUSER}
+    volumes:
+      - ../services/bonds-report-service/deployments/migrations:/migrations:ro
+    networks:
+      - myapp_network
+
   postgres-service-db:
     image: postgres:latest
-    container_name: service_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_SERVICE_USER}

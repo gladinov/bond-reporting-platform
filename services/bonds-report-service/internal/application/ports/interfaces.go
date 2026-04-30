@@ -52,7 +52,7 @@ type UidsStorage interface {
 }
 
 type CloseStorage interface {
-	CloseDB()
+	Close() error
 }
 
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=GeneralBondReportProcessor

@@ -17,4 +17,4 @@ timeouts:
   http_shutdown_timeout: 7s
   request_timeout: 5s
   app_close_timeout: 3s
-
+  db_connect_timeout: 5s

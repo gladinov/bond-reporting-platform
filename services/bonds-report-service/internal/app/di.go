@@ -83,25 +83,24 @@ func newDIContainer(logger *slog.Logger, config config.Config) *diContainer {
 
 func (d *diContainer) Storage() ports.Storage {
 	if d.storage == nil {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), d.config.Timeouts.DBConnectTimeout)
+		defer cancel()
 
-		serviceStorage, err := postgreSQL.NewStorage(ctx, d.logger, d.config)
+		d.logger.Info("create postgres pool")
+		pool, err := postgreSQL.NewPool(ctx, d.config)
 		if err != nil {
-			d.logger.Error("failed to create PostgreSQL storage", "err", err)
+			d.logger.Error("failed to create PostgreSQL pool", "err", err)
 			panic(err)
 		}
 
-		if err := serviceStorage.InitDB(ctx); err != nil {
-			d.logger.Error("failed to init PostgreSQL database", "err", err)
-			panic(err)
-		}
+		d.logger.Info("create postgres storage")
+		serviceStorage := postgreSQL.NewStorage(d.logger, pool)
 
 		d.logger.Info("PostgreSQL storage initialized successfully")
 
 		d.storage = serviceStorage
-		closer.Add("storage db", func(context.Context) error {
-			d.storage.CloseDB()
-			return nil
+		closer.Add("postgres DB", func(context.Context) error {
+			return serviceStorage.Close()
 		})
 	}
 

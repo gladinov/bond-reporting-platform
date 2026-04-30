@@ -4,18 +4,15 @@ WORKDIR /usr/local/src
 
 RUN apk add --no-cache bash git make gettext gcc musl-dev
 
-# dependencies
-COPY ["go.mod","go.sum","./"]
+COPY ["go.mod", "go.sum", "./"]
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go build -o ./bin/bond-report-service ./cmd/app/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o ./bin/bond-report-service ./cmd/app/main.go
 
-FROM alpine AS runner
-
-
+FROM alpine:3.23.4 AS runner
+RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /usr/local/src/bin/bond-report-service /
-
 
 CMD ["/bond-report-service"]

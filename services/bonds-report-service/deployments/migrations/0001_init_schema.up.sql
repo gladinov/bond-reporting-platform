@@ -1,8 +1,6 @@
-package postgreSQL
-
-var queryCreateBondReportsTable = `CREATE TABLE IF NOT EXISTS bond_reports (
+CREATE TABLE IF NOT EXISTS bond_reports (
     id SERIAL PRIMARY KEY,
-    chatId BIGINT,                              
+    chatId BIGINT,
     broker_account_id TEXT NOT NULL,
     name TEXT NOT NULL,
     ticker TEXT NOT NULL,
@@ -19,9 +17,9 @@ var queryCreateBondReportsTable = `CREATE TABLE IF NOT EXISTS bond_reports (
     nominal NUMERIC(12, 2),
     profit NUMERIC(14, 2),
     annualized_return NUMERIC(7, 4)
-);`
+);
 
-var queryCreateGeneralBondReportsTable = `CREATE TABLE IF NOT EXISTS general_bond_report (
+CREATE TABLE IF NOT EXISTS general_bond_report (
     id SERIAL PRIMARY KEY,
     chatId BIGINT,
     broker_account_id TEXT,
@@ -40,15 +38,15 @@ var queryCreateGeneralBondReportsTable = `CREATE TABLE IF NOT EXISTS general_bon
     nominal NUMERIC(12, 4),
     profit NUMERIC(14, 4),
     profit_in_percentage NUMERIC(6, 2)
-);`
+);
 
-var queryCreateUidsTable = `CREATE TABLE IF NOT EXISTS uids (
-		update_time TIMESTAMP default current_timestamp,
-		instrument_uid TEXT,
-		asset_uid TEXT
-	)`
+CREATE TABLE IF NOT EXISTS uids (
+    update_time TIMESTAMP DEFAULT current_timestamp,
+    instrument_uid TEXT,
+    asset_uid TEXT
+);
 
-var queryCreateOperationsTable = `CREATE TABLE IF NOT EXISTS operations (
+CREATE TABLE IF NOT EXISTS operations (
     id SERIAL PRIMARY KEY,
     chatId BIGINT,
     broker_account_id TEXT,
@@ -72,9 +70,9 @@ var queryCreateOperationsTable = `CREATE TABLE IF NOT EXISTS operations (
     accrued_int NUMERIC(14, 4),
     quantity_done INTEGER,
     asset_uid TEXT
-);`
+);
 
-var queryCreateCurrenciesTable = `CREATE TABLE IF NOT EXISTS currencies (
+CREATE TABLE IF NOT EXISTS currencies (
     date DATE,
     num_code TEXT,
     char_code TEXT,
@@ -82,4 +80,4 @@ var queryCreateCurrenciesTable = `CREATE TABLE IF NOT EXISTS currencies (
     name TEXT,
     value NUMERIC(14, 4),
     vunit_rate NUMERIC(14, 4)
-);`
+);
