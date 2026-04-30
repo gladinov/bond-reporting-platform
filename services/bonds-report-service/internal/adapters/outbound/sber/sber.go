@@ -20,7 +20,11 @@ type Client struct {
 	Portfolio map[string]float64
 }
 
-func LoadConfigSber(filename string) (_ ConfigSber, err error) {
+func (c *Client) GetPortfolio() map[string]float64 {
+	return c.Portfolio
+}
+
+func loadConfigSber(filename string) (_ ConfigSber, err error) {
 	defer func() { err = e.WrapIfErr("load sber config error", err) }()
 	var c ConfigSber
 	input, err := os.ReadFile(filename)
@@ -34,7 +38,7 @@ func LoadConfigSber(filename string) (_ ConfigSber, err error) {
 	return c, nil
 }
 
-func ProcessConfigSber(config ConfigSber) (map[string]float64, error) {
+func processConfigSber(config ConfigSber) (map[string]float64, error) {
 	retBonds := make(map[string]float64)
 	bonds := strings.Split(config.Bonds, ",")
 	for _, v := range bonds {
@@ -51,11 +55,11 @@ func ProcessConfigSber(config ConfigSber) (map[string]float64, error) {
 
 func NewClient(rootPath, sberConfigPath string) (*Client, error) {
 	filename := filepath.Join(rootPath, sberConfigPath)
-	config, err := LoadConfigSber(filename)
+	config, err := loadConfigSber(filename)
 	if err != nil {
 		return nil, fmt.Errorf("load sber config failed: %w", err)
 	}
-	portfolio, err := ProcessConfigSber(config)
+	portfolio, err := processConfigSber(config)
 	if err != nil {
 		return nil, fmt.Errorf("process sber config failed: %w", err)
 	}

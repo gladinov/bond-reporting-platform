@@ -19,6 +19,10 @@ type Storage interface {
 	CloseStorage
 }
 
+type SberClient interface {
+	GetPortfolio() map[string]float64
+}
+
 type OperationStorage interface {
 	LastOperationTime(ctx context.Context, chatID int, accountId string) (time.Time, error)
 	SaveOperations(ctx context.Context, chatID int, accountId string, operations []domain.OperationWithoutCustomTypes) error

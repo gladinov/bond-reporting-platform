@@ -2,10 +2,8 @@ package handlers
 
 import (
 	"bonds-report-service/internal/application/usecases"
-	"context"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gladinov/valuefromcontext"
 
@@ -45,8 +43,7 @@ func (h *Handler) GetAccountsList(c *gin.Context) {
 
 func (h *Handler) GetBondReportsByFifo(c *gin.Context) {
 	const op = "handlers.GetBondReportsByFifo"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 	chatID, err := valuefromcontext.GetChatIDFromCtxInt(ctx)
 	if err != nil {
 		h.logger.Warn("incorrect X-ChatId header",
@@ -73,8 +70,7 @@ func (h *Handler) GetBondReportsByFifo(c *gin.Context) {
 
 func (h *Handler) GetUSD(c *gin.Context) {
 	const op = "handlers.GetUSD"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 
 	usdResponce, err := h.service.GetUsd(ctx)
 	if err != nil {
@@ -94,8 +90,7 @@ func (h *Handler) GetUSD(c *gin.Context) {
 
 func (h *Handler) GetBondReports(c *gin.Context) {
 	const op = "handlers.GetBondReports"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 	logg := h.logger.With(
 		slog.String("op", op),
 		slog.String("path", c.Request.URL.Path))
@@ -124,8 +119,7 @@ func (h *Handler) GetBondReports(c *gin.Context) {
 
 func (h *Handler) GetPortfolioStructure(c *gin.Context) {
 	const op = "handlers.GetPortfolioStructure"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 
 	portfolioStructuresResonce, err := h.service.GetPortfolioStructureForEachAccount(ctx)
 	if err != nil {
@@ -144,8 +138,7 @@ func (h *Handler) GetPortfolioStructure(c *gin.Context) {
 
 func (h *Handler) GetUnionPortfolioStructure(c *gin.Context) {
 	const op = "handlers.GetUnionPortfolioStructure"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 
 	portfolioStructure, err := h.service.GetUnionPortfolioStructureForEachAccount(ctx)
 	if err != nil {
@@ -165,8 +158,7 @@ func (h *Handler) GetUnionPortfolioStructure(c *gin.Context) {
 
 func (h *Handler) GetUnionPortfolioStructureWithSber(c *gin.Context) {
 	const op = "handlers.GetUnionPortfolioStructureWithSber"
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
-	defer cancel()
+	ctx := c.Request.Context()
 
 	portfolioStructure, err := h.service.GetUnionPortfolioStructureWithSber(ctx)
 	if err != nil {

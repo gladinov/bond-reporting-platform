@@ -1,7 +1,6 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/adapters/outbound/sber"
 	"bonds-report-service/internal/application/dto"
 	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
 	"bonds-report-service/internal/application/ports"
@@ -41,13 +40,13 @@ const (
 type ExternalApis struct {
 	Moex ports.MoexClient
 	Cbr  ports.CbrClient
-	Sber *sber.Client
+	Sber ports.SberClient
 }
 
 func NewExternalApis(
 	moex ports.MoexClient,
 	cbr ports.CbrClient,
-	sber *sber.Client,
+	sber ports.SberClient,
 ) *ExternalApis {
 	return &ExternalApis{
 		Moex: moex,

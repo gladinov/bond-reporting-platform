@@ -51,7 +51,7 @@ func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ dto
 	wgStage1.Add(1)
 	go func() {
 		defer wgStage1.Done()
-		sberPortfolio, sberErr := s.divideByTypeFromSber(ctxWorkers, s.External.Sber.Portfolio)
+		sberPortfolio, sberErr := s.divideByTypeFromSber(ctxWorkers, s.External.Sber.GetPortfolio())
 		if sberErr != nil {
 			pipeline.sendErr(e.WrapIfErr("couldnot divide by type from sber", sberErr))
 			return

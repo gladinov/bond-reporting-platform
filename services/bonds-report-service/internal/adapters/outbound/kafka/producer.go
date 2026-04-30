@@ -43,7 +43,7 @@ func (p *Producer) PublishFailedBondReportWithPng(
 		Topic: kafka.ReportFailed,
 		Value: body,
 	}
-	// TODO: ПОчитать как проверять и обрабатывать ошибку при отправке
+	// TODO: дождаться результата Produce и вернуть ошибку, если Kafka не подтвердила отправку
 	p.kafka.Produce(ctx, &record, nil)
 	return nil
 }
@@ -69,7 +69,7 @@ func (p *Producer) PublishBondReportWithPng(
 		Topic: kafka.ReportGenerated,
 		Value: body,
 	}
-	// TODO: ПОчитать как проверять и обрабатывать ошибку при отправке
+	// TODO: дождаться результата Produce и вернуть ошибку, если Kafka не подтвердила отправку
 	p.kafka.Produce(ctx, &record, nil)
 	return nil
 }

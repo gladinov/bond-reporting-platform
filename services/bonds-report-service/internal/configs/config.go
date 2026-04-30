@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -21,6 +22,17 @@ type Config struct {
 	Clients                   Clients      `yaml:"clients"`
 	PostgresHost              PostgresHost `yaml:"postgresHost"`
 	Kafka                     Kafka
+	Timeouts                  Timeouts `yaml:"timeouts"`
+}
+
+type Timeouts struct {
+	HTTPReadHeaderTimeout time.Duration `yaml:"http_read_header_timeout"`
+	HTTPReadTimeout       time.Duration `yaml:"http_read_timeout"`
+	HTTPWriteTimeout      time.Duration `yaml:"http_write_timeout"`
+	HTTPIdleTimeout       time.Duration `yaml:"http_idle_timeout"`
+	HTTPShutdownTimeout   time.Duration `yaml:"http_shutdown_timeout"`
+	RequestTimeout        time.Duration `yaml:"request_timeout"`
+	AppCloseTimeout       time.Duration `yaml:"app_close_timeout"`
 }
 
 type Clients struct {

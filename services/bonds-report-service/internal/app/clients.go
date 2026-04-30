@@ -11,8 +11,6 @@ import (
 	config "bonds-report-service/internal/configs"
 )
 
-// TODO: Переписать с DI запуском как у козырева
-
 func InitCBRClient(logger *slog.Logger, host string) *cbr.Client {
 	logger.Info("initialize CBR client", slog.String("address", host))
 	if host == "" {
@@ -37,5 +35,3 @@ func InitSberClient(logger *slog.Logger, conf *config.Config) (*sber.Client, err
 	logger.Info("initialize Sber client", slog.String("address", conf.SberConfigPath))
 	return sber.NewClient(conf.RootPath, conf.SberConfigPath)
 }
-
-// func InitKafkaConsumer()
