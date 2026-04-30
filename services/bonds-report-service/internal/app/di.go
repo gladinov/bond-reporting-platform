@@ -3,9 +3,28 @@ package app
 import (
 	handlers "bonds-report-service/internal/adapters/inbound/gateway"
 	kafkaConsumer "bonds-report-service/internal/adapters/inbound/kafka"
+	cbr "bonds-report-service/internal/adapters/outbound/cbr/client"
+	cbrtransport "bonds-report-service/internal/adapters/outbound/cbr/transport"
 	"bonds-report-service/internal/adapters/outbound/kafka"
+	moex "bonds-report-service/internal/adapters/outbound/moex/client"
+	moextransport "bonds-report-service/internal/adapters/outbound/moex/transport"
 	"bonds-report-service/internal/adapters/outbound/repository/postgreSQL"
+	"bonds-report-service/internal/adapters/outbound/sber"
+	"bonds-report-service/internal/adapters/outbound/tinkoffApi/client/analyticsclient"
+	"bonds-report-service/internal/adapters/outbound/tinkoffApi/client/instrumentsclient"
+	"bonds-report-service/internal/adapters/outbound/tinkoffApi/client/portfolioclient"
+	tinkofftransport "bonds-report-service/internal/adapters/outbound/tinkoffApi/transport"
+	bondreport "bonds-report-service/internal/application/helpers/bondReport"
+	cbrHelper "bonds-report-service/internal/application/helpers/cbr"
+	dividerbyassettype "bonds-report-service/internal/application/helpers/dividerByAssetType"
+	generalbondreport "bonds-report-service/internal/application/helpers/generalBondReport"
+	moexHelper "bonds-report-service/internal/application/helpers/moex"
+	positionProcessor "bonds-report-service/internal/application/helpers/positionsToPositionsWithAssetUidProcessor"
+	"bonds-report-service/internal/application/helpers/report"
+	reportlinebuiler "bonds-report-service/internal/application/helpers/reportLineBuiler"
 	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
+	"bonds-report-service/internal/application/helpers/uidprovider"
+	updateoperations "bonds-report-service/internal/application/helpers/updateOperations"
 	"bonds-report-service/internal/application/ports"
 	"bonds-report-service/internal/application/usecases"
 	"bonds-report-service/internal/closer"
@@ -17,30 +36,38 @@ import (
 )
 
 type diContainer struct {
-	logger                  *slog.Logger
-	config                  config.Config
-	storage                 ports.Storage
-	tinkoffHelper           *tinkoffHelper.TinkoffHelper
-	moexClient              ports.MoexClient
-	cbrClient               ports.CbrClient
-	sberClient              ports.SberClient
-	externalApis            *usecases.ExternalApis
-	helpers                 *usecases.Helpers
-	service                 *usecases.Service
-	handler                 appHandler
-	kafkaProducer           usecases.Producer
-	kafkaHandler            kafkaConsumer.Handler
-	kafkaConsumer           KafkaConsumer
-	bondReportProcessor     ports.BondReportProcessor
-	cbrCurrencyGetter       ports.CbrCurrencyGetter
-	generalBondReporter     ports.GeneralBondReportProcessor
-	moexSpecificationGetter ports.MoexSpecificationGetter
-	reportProcessor         ports.ReportProcessor
-	uidProvider             ports.UidProvider
-	operationsUpdater       ports.OperationsUpdater
-	positionProcessor       ports.PositionProcessor
-	reportLineBuilder       ports.ReportLineBuilder
-	dividerByAssetType      ports.DividerByAssetType
+	logger                   *slog.Logger
+	config                   config.Config
+	storage                  ports.Storage
+	tinkoffTransport         tinkofftransport.TransportClient
+	tinkoffAnalyticsClient   ports.TinkoffAnalyticsClient
+	tinkoffInstrumentsClient ports.TinkoffInstrumentsClient
+	tinkoffPortfolioClient   ports.TinkoffPortfolioClient
+	tinkoffHelper            *tinkoffHelper.TinkoffHelper
+	moexTransport            moextransport.TransportClient
+	moexClient               ports.MoexClient
+	cbrTransport             cbrtransport.TransportClient
+	cbrClient                ports.CbrClient
+	sberClient               ports.SberClient
+	externalApis             *usecases.ExternalApis
+	helpers                  *usecases.Helpers
+	service                  *usecases.Service
+	handler                  appHandler
+	kafkaProducerClient      *kgo.Client
+	kafkaProducer            usecases.Producer
+	kafkaHandler             kafkaConsumer.Handler
+	kafkaConsumerClient      *kgo.Client
+	kafkaConsumer            KafkaConsumer
+	bondReportProcessor      ports.BondReportProcessor
+	cbrCurrencyGetter        ports.CbrCurrencyGetter
+	generalBondReporter      ports.GeneralBondReportProcessor
+	moexSpecificationGetter  ports.MoexSpecificationGetter
+	reportProcessor          ports.ReportProcessor
+	uidProvider              ports.UidProvider
+	operationsUpdater        ports.OperationsUpdater
+	positionProcessor        ports.PositionProcessor
+	reportLineBuilder        ports.ReportLineBuilder
+	dividerByAssetType       ports.DividerByAssetType
 }
 
 type KafkaConsumer interface {
@@ -83,31 +110,110 @@ func (d *diContainer) Storage() ports.Storage {
 
 func (d *diContainer) TinkoffHelper() *tinkoffHelper.TinkoffHelper {
 	if d.tinkoffHelper == nil {
-		d.tinkoffHelper = InitTinkoffApiHelper(d.logger, d.config.Clients.TinkoffClient.GetTinkoffApiAddress())
+		d.logger.Info("initialize Tinkoff helper")
+		d.tinkoffHelper = tinkoffHelper.NewTinkoffHelper(
+			d.logger,
+			d.TinkoffInstrumentsClient(),
+			d.TinkoffPortfolioClient(),
+			d.TinkoffAnalyticsClient(),
+		)
 	}
 
 	return d.tinkoffHelper
 }
 
+func (d *diContainer) TinkoffTransport() tinkofftransport.TransportClient {
+	if d.tinkoffTransport == nil {
+		host := d.config.Clients.TinkoffClient.GetTinkoffApiAddress()
+		d.logger.Info("initialize Tinkoff transport", slog.String("address", host))
+		if host == "" {
+			panic("tinkoff host is empty")
+		}
+
+		d.tinkoffTransport = tinkofftransport.NewTransport(d.logger, host, d.config.Timeouts.RequestTimeout)
+	}
+
+	return d.tinkoffTransport
+}
+
+func (d *diContainer) TinkoffAnalyticsClient() ports.TinkoffAnalyticsClient {
+	if d.tinkoffAnalyticsClient == nil {
+		d.logger.Info("initialize Tinkoff analytics client")
+		d.tinkoffAnalyticsClient = analyticsclient.NewAnalyticsTinkoffClient(d.logger, d.TinkoffTransport())
+	}
+
+	return d.tinkoffAnalyticsClient
+}
+
+func (d *diContainer) TinkoffInstrumentsClient() ports.TinkoffInstrumentsClient {
+	if d.tinkoffInstrumentsClient == nil {
+		d.logger.Info("initialize Tinkoff instruments client")
+		d.tinkoffInstrumentsClient = instrumentsclient.NewInstrumentsTinkoffClient(d.logger, d.TinkoffTransport())
+	}
+
+	return d.tinkoffInstrumentsClient
+}
+
+func (d *diContainer) TinkoffPortfolioClient() ports.TinkoffPortfolioClient {
+	if d.tinkoffPortfolioClient == nil {
+		d.logger.Info("initialize Tinkoff portfolio client")
+		d.tinkoffPortfolioClient = portfolioclient.NewPortfolioTinkoffClient(d.logger, d.TinkoffTransport())
+	}
+
+	return d.tinkoffPortfolioClient
+}
+
 func (d *diContainer) MoexClient() ports.MoexClient {
 	if d.moexClient == nil {
-		d.moexClient = InitTiMoexClient(d.logger, d.config.Clients.MoexClient.GetMoexAppAddress())
+		d.logger.Info("initialize Moex client")
+		d.moexClient = moex.NewMoexClient(d.logger, d.MoexTransport())
 	}
 
 	return d.moexClient
 }
 
+func (d *diContainer) MoexTransport() moextransport.TransportClient {
+	if d.moexTransport == nil {
+		host := d.config.Clients.MoexClient.GetMoexAppAddress()
+		d.logger.Info("initialize Moex transport", slog.String("address", host))
+		if host == "" {
+			panic("moex host is empty")
+		}
+
+		d.moexTransport = moextransport.NewTransport(d.logger, host, d.config.Timeouts.RequestTimeout)
+	}
+
+	return d.moexTransport
+}
+
 func (d *diContainer) CBRClient() ports.CbrClient {
 	if d.cbrClient == nil {
-		d.cbrClient = InitCBRClient(d.logger, d.config.Clients.CBRClient.GetCBRAppAddress())
+		d.logger.Info("initialize CBR client")
+		d.cbrClient = cbr.NewCbrClient(d.logger, d.CBRTransport())
 	}
 
 	return d.cbrClient
 }
 
+func (d *diContainer) CBRTransport() cbrtransport.TransportClient {
+	if d.cbrTransport == nil {
+		host := d.config.Clients.CBRClient.GetCBRAppAddress()
+		d.logger.Info("initialize CBR transport", slog.String("address", host))
+		if host == "" {
+			panic("cbr host is empty")
+		}
+
+		d.cbrTransport = cbrtransport.NewTransport(d.logger, host, d.config.Timeouts.RequestTimeout)
+	}
+
+	return d.cbrTransport
+}
+
 func (d *diContainer) SberClient() ports.SberClient {
 	if d.sberClient == nil {
-		sberClient, err := InitSberClient(d.logger, &d.config)
+		d.logger.Info("initialize Sber client", slog.String("address", d.config.SberConfigPath))
+
+		sberClient, err := sber.NewClient(d.config.RootPath, d.config.SberConfigPath)
 		if err != nil {
 			d.logger.Error("could not create sber client", slog.String("error", err.Error()))
 			panic(err)
@@ -121,7 +227,8 @@ func (d *diContainer) SberClient() ports.SberClient {
 
 func (d *diContainer) BondReportProcessor() ports.BondReportProcessor {
 	if d.bondReportProcessor == nil {
-		d.bondReportProcessor = InitBondReportProcessor(d.logger)
+		d.logger.Info("initialize bond report processor")
+		d.bondReportProcessor = bondreport.NewBondReporter(d.logger)
 	}
 
 	return d.bondReportProcessor
@@ -129,7 +236,8 @@ func (d *diContainer) BondReportProcessor() ports.BondReportProcessor {
 
 func (d *diContainer) CBRCurrencyGetter() ports.CbrCurrencyGetter {
 	if d.cbrCurrencyGetter == nil {
-		d.cbrCurrencyGetter = InitCBRCurrencyGetter(d.logger, d.CBRClient(), d.Storage())
+		d.logger.Info("initialize cbr currency getter")
+		d.cbrCurrencyGetter = cbrHelper.NewCbrHelper(d.logger, d.CBRClient(), d.Storage())
 	}
 
 	return d.cbrCurrencyGetter
@@ -137,7 +245,8 @@ func (d *diContainer) CBRCurrencyGetter() ports.CbrCurrencyGetter {
 
 func (d *diContainer) GeneralBondReporter() ports.GeneralBondReportProcessor {
 	if d.generalBondReporter == nil {
-		d.generalBondReporter = InitGeneralReportProcessor(d.logger)
+		d.logger.Info("initialize general bond report processor")
+		d.generalBondReporter = generalbondreport.NewGeneralBondReporter(d.logger)
 	}
 
 	return d.generalBondReporter
@@ -145,7 +254,8 @@ func (d *diContainer) GeneralBondReporter() ports.GeneralBondReportProcessor {
 
 func (d *diContainer) MoexSpecificationGetter() ports.MoexSpecificationGetter {
 	if d.moexSpecificationGetter == nil {
-		d.moexSpecificationGetter = InitMoexSpecificationGetter(d.logger, d.MoexClient())
+		d.logger.Info("initialize moex specification getter")
+		d.moexSpecificationGetter = moexHelper.NewMoexHelper(d.logger, d.MoexClient())
 	}
 
 	return d.moexSpecificationGetter
@@ -153,7 +263,8 @@ func (d *diContainer) MoexSpecificationGetter() ports.MoexSpecificationGetter {
 
 func (d *diContainer) ReportProcessor() ports.ReportProcessor {
 	if d.reportProcessor == nil {
-		d.reportProcessor = InitReportProcessor(d.logger)
+		d.logger.Info("initialize report processor")
+		d.reportProcessor = report.NewReportProcessor(d.logger)
 	}
 
 	return d.reportProcessor
@@ -161,7 +272,8 @@ func (d *diContainer) ReportProcessor() ports.ReportProcessor {
 
 func (d *diContainer) UidProvider() ports.UidProvider {
 	if d.uidProvider == nil {
-		d.uidProvider = InitUidProvider(d.logger, d.Storage(), d.TinkoffHelper().Analytics)
+		d.logger.Info("initialize uid provider")
+		d.uidProvider = uidprovider.NewUidProvider(d.Storage(), d.TinkoffAnalyticsClient())
 	}
 
 	return d.uidProvider
@@ -169,7 +281,8 @@ func (d *diContainer) UidProvider() ports.UidProvider {
 
 func (d *diContainer) OperationsUpdater() ports.OperationsUpdater {
 	if d.operationsUpdater == nil {
-		d.operationsUpdater = InitOperationsUpdater(d.logger, d.TinkoffHelper(), d.Storage())
+		d.logger.Info("initialize operations updater")
+		d.operationsUpdater = updateoperations.NewUpdater(d.logger, d.Storage(), d.TinkoffHelper())
 	}
 
 	return d.operationsUpdater
@@ -177,7 +290,8 @@ func (d *diContainer) OperationsUpdater() ports.OperationsUpdater {
 
 func (d *diContainer) PositionProcessor() ports.PositionProcessor {
 	if d.positionProcessor == nil {
-		d.positionProcessor = InitPositionProcessor(d.logger, d.UidProvider())
+		d.logger.Info("initialize position processor")
+		d.positionProcessor = positionProcessor.NewProcessor(d.logger, d.UidProvider())
 	}
 
 	return d.positionProcessor
@@ -185,7 +299,8 @@ func (d *diContainer) PositionProcessor() ports.PositionProcessor {
 
 func (d *diContainer) ReportLineBuilder() ports.ReportLineBuilder {
 	if d.reportLineBuilder == nil {
-		d.reportLineBuilder = InitReportLineBuilder(d.logger, d.TinkoffHelper(), d.CBRCurrencyGetter())
+		d.logger.Info("initialize report line builder")
+		d.reportLineBuilder = reportlinebuiler.NewReportLineBuilder(d.logger, d.TinkoffHelper(), d.CBRCurrencyGetter())
 	}
 
 	return d.reportLineBuilder
@@ -193,7 +308,13 @@ func (d *diContainer) ReportLineBuilder() ports.ReportLineBuilder {
 
 func (d *diContainer) DividerByAssetType() ports.DividerByAssetType {
 	if d.dividerByAssetType == nil {
-		d.dividerByAssetType = InitDividerByAssetType(d.logger, d.TinkoffHelper(), d.CBRCurrencyGetter(), d.config.WorkersNubmer)
+		d.logger.Info("initialize divider by asset type")
+		d.dividerByAssetType = dividerbyassettype.NewDividerByAssetType(
+			d.logger,
+			d.TinkoffHelper(),
+			d.CBRCurrencyGetter(),
+			d.config.WorkersNubmer,
+		)
 	}
 
 	return d.dividerByAssetType
@@ -228,6 +349,15 @@ func (d *diContainer) Helpers() *usecases.Helpers {
 
 func (d *diContainer) KafkaProducer() usecases.Producer {
 	if d.kafkaProducer == nil {
+		d.logger.Info("initialize kafka producer")
+		d.kafkaProducer = kafka.NewProducer(d.logger, d.KafkaProducerClient())
+	}
+
+	return d.kafkaProducer
+}
+
+func (d *diContainer) KafkaProducerClient() *kgo.Client {
+	if d.kafkaProducerClient == nil {
 		d.logger.Info("initialize producer kafka client")
 
 		producerClient, err := kgo.NewClient(kgo.SeedBrokers(d.config.Kafka.GetKafkaAddress()))
@@ -241,15 +371,14 @@ func (d *diContainer) KafkaProducer() usecases.Producer {
 			panic(err)
 		}
 
+		d.kafkaProducerClient = producerClient
 		closer.Add("kafka producer", func(context.Context) error {
 			producerClient.Close()
 			return nil
 		})
-
-		d.kafkaProducer = kafka.NewProducer(d.logger, producerClient)
 	}
 
-	return d.kafkaProducer
+	return d.kafkaProducerClient
 }
 
 func (d *diContainer) Service() *usecases.Service {
@@ -278,6 +407,15 @@ func (d *diContainer) KafkaHandler() kafkaConsumer.Handler {
 
 func (d *diContainer) Consumer() KafkaConsumer {
 	if d.kafkaConsumer == nil {
+		d.logger.Info("initialize kafka consumer")
+		d.kafkaConsumer = kafkaConsumer.NewConsumer(d.logger, d.KafkaConsumerClient(), d.KafkaHandler())
+	}
+
+	return d.kafkaConsumer
+}
+
+func (d *diContainer) KafkaConsumerClient() *kgo.Client {
+	if d.kafkaConsumerClient == nil {
 		d.logger.Info("initialize consumer kafka client")
 
 		consumerClient, err := kgo.NewClient(
@@ -300,10 +438,10 @@ func (d *diContainer) Consumer() KafkaConsumer {
 			return nil
 		})
 
-		d.kafkaConsumer = kafkaConsumer.NewConsumer(d.logger, consumerClient, d.KafkaHandler())
+		d.kafkaConsumerClient = consumerClient
 	}
 
-	return d.kafkaConsumer
+	return d.kafkaConsumerClient
 }
 
 func (d *diContainer) Handler() appHandler {

@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +44,7 @@ func TestTransport_DoRequest(t *testing.T) {
 	})
 
 	t.Run("Error: invalid URL", func(t *testing.T) {
-		tr := NewTransport(logger, "http://[::1]:0")
+		tr := NewTransport(logger, "http://[::1]:0", 10*time.Second)
 		_, err := tr.DoRequest(ctx, "/test", url.Values{}, nil)
 		assert.Error(t, err)
 	})

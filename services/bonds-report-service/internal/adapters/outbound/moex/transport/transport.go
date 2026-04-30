@@ -15,8 +15,6 @@ import (
 	"github.com/gladinov/e"
 )
 
-const defaultTimeout = 10 * time.Second
-
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=TransportClient
 type TransportClient interface {
 	DoRequest(ctx context.Context, path string, query url.Values, requestBody io.Reader) (*models.HTTPResponse, error)
@@ -28,12 +26,12 @@ type Transport struct {
 	client *http.Client
 }
 
-func NewTransport(logger *slog.Logger, host string) *Transport {
+func NewTransport(logger *slog.Logger, host string, timeout time.Duration) *Transport {
 	return &Transport{
 		logger: logger,
 		host:   host,
 		client: &http.Client{
-			Timeout: defaultTimeout,
+			Timeout: timeout,
 		},
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	contextkeys "github.com/gladinov/contracts/context"
 	"github.com/stretchr/testify/require"
@@ -82,7 +83,7 @@ func TestDoRequest_Realistic(t *testing.T) {
 	t.Run("Err: without chatID ctx header", func(t *testing.T) {
 		ctx := context.Background()
 
-		transport := NewTransport(logg, testHost)
+		transport := NewTransport(logg, testHost, 10*time.Second)
 		_, err := transport.DoRequest(ctx, "/mock", url.Values{}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to set headers")
