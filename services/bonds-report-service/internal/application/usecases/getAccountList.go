@@ -19,6 +19,6 @@ func (s *Service) GetAccountsList(ctx context.Context) (answ dto.AccountListResp
 		return dto.AccountListResponce{}, e.WrapIfErr("can't get accounts from tinkoff", err)
 	}
 
-	accountResponce := presenter.GetAccount(ctx, accs)
+	accountResponce := presenter.GetAccount(accs)
 	return accountResponce, nil
 }

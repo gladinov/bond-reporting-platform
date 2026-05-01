@@ -18,7 +18,6 @@ import (
 
 type reportJob struct {
 	GeneralBondReport generalbondreport.GeneralBondReports
-	AccountID         string
 }
 
 var ErrEmptyBondPositions = errors.New("len of result bond positions is empty")
@@ -57,7 +56,7 @@ func (s *Service) GetBondReports(ctx context.Context, chatID int) (_ dto.BondRep
 		wgStage2.Add(1)
 		go func() {
 			defer wgStage2.Done()
-			s.renderReportsWorker(ctxWorkers, reportsCh, errCh, mediaGroupsCh, chatID)
+			s.renderReportsWorker(ctxWorkers, reportsCh, errCh, mediaGroupsCh)
 		}()
 	}
 
@@ -146,7 +145,7 @@ func (s *Service) buildBondReportsPipeline(
 		wgRender.Add(1)
 		go func() {
 			defer wgRender.Done()
-			s.renderReportsWorker(workersCtx, reportsCh, errCh, mediaGroupsCh, chatID)
+			s.renderReportsWorker(workersCtx, reportsCh, errCh, mediaGroupsCh)
 		}()
 	}
 
@@ -229,7 +228,6 @@ func (s *Service) fetchReportsWorker(
 			select {
 			case generalBondReportsCh <- reportJob{
 				GeneralBondReport: generalBondReports,
-				AccountID:         account.ID,
 			}:
 			case <-ctx.Done():
 				return
@@ -244,7 +242,6 @@ func (s *Service) renderReportsWorker(
 	generalBondReportsCh <-chan reportJob,
 	errCh chan<- error,
 	reportCh chan<- []*dto.MediaGroup,
-	chatID int,
 ) {
 	for {
 		select {
@@ -256,9 +253,7 @@ func (s *Service) renderReportsWorker(
 			}
 			reportsInByte, err := presenter.GenerateTablePNG(ctx,
 				s.logger,
-				&genralBondReportWithAccount.GeneralBondReport,
-				chatID,
-				genralBondReportWithAccount.AccountID)
+				&genralBondReportWithAccount.GeneralBondReport)
 			if err != nil {
 				select {
 				case errCh <- e.WrapIfErr("failed to GenerateTablePNG", err):

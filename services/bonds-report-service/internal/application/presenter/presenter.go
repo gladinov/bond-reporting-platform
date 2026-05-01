@@ -43,10 +43,7 @@ func EncodePNGToBuffer(dc *gg.Context) ([]byte, error) {
 }
 
 func GenerateTablePNG(ctx context.Context, logger *slog.Logger,
-	// reports [][]generalbondreport.GeneralBondReportPosition,
 	generalBondReports *generalbondreport.GeneralBondReports,
-	chatID int,
-	accountID string,
 ) (_ []*dto.MediaGroup, err error) {
 	const op = "presenter.GenerateTablePNG"
 
@@ -478,7 +475,7 @@ func ResponsePortfolioStructure(ctx context.Context, logger *slog.Logger, portfo
 	return response
 }
 
-func GetAccount(ctx context.Context, accs map[string]domain.Account) dto.AccountListResponce {
+func GetAccount(accs map[string]domain.Account) dto.AccountListResponce {
 	var accStr string = "По данному аккаунту доступны следующие счета:"
 	for _, account := range accs {
 		accStr += fmt.Sprintf("\n ID:%s, Type: %s, Name: %s, Status: %v \n", account.ID, account.Type, account.Name, account.Status)
