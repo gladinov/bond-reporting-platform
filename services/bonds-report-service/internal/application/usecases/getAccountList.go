@@ -14,7 +14,7 @@ func (s *Service) GetAccountsList(ctx context.Context) (answ dto.AccountListResp
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accs, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accs, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return dto.AccountListResponce{}, e.WrapIfErr("can't get accounts from tinkoff", err)
 	}

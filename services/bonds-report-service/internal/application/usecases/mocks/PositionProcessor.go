@@ -14,9 +14,9 @@ type PositionProcessor struct {
 	mock.Mock
 }
 
-// ProcessPositionsToPositionsWithAssetUid provides a mock function with given fields: ctx, portffolioPositions
-func (_m *PositionProcessor) ProcessPositionsToPositionsWithAssetUid(ctx context.Context, portffolioPositions []domain.PortfolioPosition) ([]domain.PortfolioPositionsWithAssetUid, error) {
-	ret := _m.Called(ctx, portffolioPositions)
+// ProcessPositionsToPositionsWithAssetUid provides a mock function with given fields: ctx, portfolioPositions
+func (_m *PositionProcessor) ProcessPositionsToPositionsWithAssetUid(ctx context.Context, portfolioPositions []domain.PortfolioPosition) ([]domain.PortfolioPositionsWithAssetUid, error) {
+	ret := _m.Called(ctx, portfolioPositions)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ProcessPositionsToPositionsWithAssetUid")
@@ -25,10 +25,10 @@ func (_m *PositionProcessor) ProcessPositionsToPositionsWithAssetUid(ctx context
 	var r0 []domain.PortfolioPositionsWithAssetUid
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, []domain.PortfolioPosition) ([]domain.PortfolioPositionsWithAssetUid, error)); ok {
-		return rf(ctx, portffolioPositions)
+		return rf(ctx, portfolioPositions)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []domain.PortfolioPosition) []domain.PortfolioPositionsWithAssetUid); ok {
-		r0 = rf(ctx, portffolioPositions)
+		r0 = rf(ctx, portfolioPositions)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.PortfolioPositionsWithAssetUid)
@@ -36,7 +36,7 @@ func (_m *PositionProcessor) ProcessPositionsToPositionsWithAssetUid(ctx context
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, []domain.PortfolioPosition) error); ok {
-		r1 = rf(ctx, portffolioPositions)
+		r1 = rf(ctx, portfolioPositions)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -58,16 +58,16 @@ type diContainer struct {
 	kafkaHandler             kafkaConsumer.Handler
 	kafkaConsumerClient      *kgo.Client
 	kafkaConsumer            KafkaConsumer
-	bondReportProcessor      ports.BondReportProcessor
-	cbrCurrencyGetter        ports.CbrCurrencyGetter
-	generalBondReporter      ports.GeneralBondReportProcessor
-	moexSpecificationGetter  ports.MoexSpecificationGetter
-	reportProcessor          ports.ReportProcessor
-	uidProvider              ports.UidProvider
-	operationsUpdater        ports.OperationsUpdater
-	positionProcessor        ports.PositionProcessor
-	reportLineBuilder        ports.ReportLineBuilder
-	dividerByAssetType       ports.DividerByAssetType
+	bondReportProcessor      usecases.BondReportProcessor
+	cbrCurrencyGetter        usecases.CbrCurrencyGetter
+	generalBondReporter      usecases.GeneralBondReportProcessor
+	moexSpecificationGetter  usecases.MoexSpecificationGetter
+	reportProcessor          usecases.ReportProcessor
+	uidProvider              positionProcessor.UidProvider
+	operationsUpdater        usecases.OperationsUpdater
+	positionProcessor        usecases.PositionProcessor
+	reportLineBuilder        usecases.ReportLineBuilder
+	dividerByAssetType       usecases.DividerByAssetType
 }
 
 type KafkaConsumer interface {
@@ -224,7 +224,7 @@ func (d *diContainer) SberClient() ports.SberClient {
 	return d.sberClient
 }
 
-func (d *diContainer) BondReportProcessor() ports.BondReportProcessor {
+func (d *diContainer) BondReportProcessor() usecases.BondReportProcessor {
 	if d.bondReportProcessor == nil {
 		d.logger.Info("initialize bond report processor")
 		d.bondReportProcessor = bondreport.NewBondReporter(d.logger)
@@ -233,7 +233,7 @@ func (d *diContainer) BondReportProcessor() ports.BondReportProcessor {
 	return d.bondReportProcessor
 }
 
-func (d *diContainer) CBRCurrencyGetter() ports.CbrCurrencyGetter {
+func (d *diContainer) CBRCurrencyGetter() usecases.CbrCurrencyGetter {
 	if d.cbrCurrencyGetter == nil {
 		d.logger.Info("initialize cbr currency getter")
 		d.cbrCurrencyGetter = cbrHelper.NewCbrHelper(d.logger, d.CBRClient(), d.Storage())
@@ -242,7 +242,7 @@ func (d *diContainer) CBRCurrencyGetter() ports.CbrCurrencyGetter {
 	return d.cbrCurrencyGetter
 }
 
-func (d *diContainer) GeneralBondReporter() ports.GeneralBondReportProcessor {
+func (d *diContainer) GeneralBondReporter() usecases.GeneralBondReportProcessor {
 	if d.generalBondReporter == nil {
 		d.logger.Info("initialize general bond report processor")
 		d.generalBondReporter = generalbondreport.NewGeneralBondReporter(d.logger)
@@ -251,7 +251,7 @@ func (d *diContainer) GeneralBondReporter() ports.GeneralBondReportProcessor {
 	return d.generalBondReporter
 }
 
-func (d *diContainer) MoexSpecificationGetter() ports.MoexSpecificationGetter {
+func (d *diContainer) MoexSpecificationGetter() usecases.MoexSpecificationGetter {
 	if d.moexSpecificationGetter == nil {
 		d.logger.Info("initialize moex specification getter")
 		d.moexSpecificationGetter = moexHelper.NewMoexHelper(d.logger, d.MoexClient())
@@ -260,7 +260,7 @@ func (d *diContainer) MoexSpecificationGetter() ports.MoexSpecificationGetter {
 	return d.moexSpecificationGetter
 }
 
-func (d *diContainer) ReportProcessor() ports.ReportProcessor {
+func (d *diContainer) ReportProcessor() usecases.ReportProcessor {
 	if d.reportProcessor == nil {
 		d.logger.Info("initialize report processor")
 		d.reportProcessor = report.NewReportProcessor(d.logger)
@@ -269,7 +269,7 @@ func (d *diContainer) ReportProcessor() ports.ReportProcessor {
 	return d.reportProcessor
 }
 
-func (d *diContainer) UidProvider() ports.UidProvider {
+func (d *diContainer) UidProvider() positionProcessor.UidProvider {
 	if d.uidProvider == nil {
 		d.logger.Info("initialize uid provider")
 		d.uidProvider = uidprovider.NewUidProvider(d.Storage(), d.TinkoffAnalyticsClient())
@@ -278,7 +278,7 @@ func (d *diContainer) UidProvider() ports.UidProvider {
 	return d.uidProvider
 }
 
-func (d *diContainer) OperationsUpdater() ports.OperationsUpdater {
+func (d *diContainer) OperationsUpdater() usecases.OperationsUpdater {
 	if d.operationsUpdater == nil {
 		d.logger.Info("initialize operations updater")
 		d.operationsUpdater = updateoperations.NewUpdater(d.logger, d.Storage(), d.TinkoffHelper())
@@ -287,7 +287,7 @@ func (d *diContainer) OperationsUpdater() ports.OperationsUpdater {
 	return d.operationsUpdater
 }
 
-func (d *diContainer) PositionProcessor() ports.PositionProcessor {
+func (d *diContainer) PositionProcessor() usecases.PositionProcessor {
 	if d.positionProcessor == nil {
 		d.logger.Info("initialize position processor")
 		d.positionProcessor = positionProcessor.NewProcessor(d.logger, d.UidProvider())
@@ -296,7 +296,7 @@ func (d *diContainer) PositionProcessor() ports.PositionProcessor {
 	return d.positionProcessor
 }
 
-func (d *diContainer) ReportLineBuilder() ports.ReportLineBuilder {
+func (d *diContainer) ReportLineBuilder() usecases.ReportLineBuilder {
 	if d.reportLineBuilder == nil {
 		d.logger.Info("initialize report line builder")
 		d.reportLineBuilder = reportlinebuiler.NewReportLineBuilder(d.logger, d.TinkoffHelper(), d.CBRCurrencyGetter())
@@ -305,7 +305,7 @@ func (d *diContainer) ReportLineBuilder() ports.ReportLineBuilder {
 	return d.reportLineBuilder
 }
 
-func (d *diContainer) DividerByAssetType() ports.DividerByAssetType {
+func (d *diContainer) DividerByAssetType() usecases.DividerByAssetType {
 	if d.dividerByAssetType == nil {
 		d.logger.Info("initialize divider by asset type")
 		d.dividerByAssetType = dividerbyassettype.NewDividerByAssetType(

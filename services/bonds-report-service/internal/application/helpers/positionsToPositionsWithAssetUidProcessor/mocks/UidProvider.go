@@ -41,34 +41,6 @@ func (_m *UidProvider) GetUid(ctx context.Context, instrumentUid string) (string
 	return r0, r1
 }
 
-// UpdateAndGetUid provides a mock function with given fields: ctx, instrumentUid
-func (_m *UidProvider) UpdateAndGetUid(ctx context.Context, instrumentUid string) (string, error) {
-	ret := _m.Called(ctx, instrumentUid)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateAndGetUid")
-	}
-
-	var r0 string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, instrumentUid)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, instrumentUid)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, instrumentUid)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // NewUidProvider creates a new instance of UidProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewUidProvider(t interface {

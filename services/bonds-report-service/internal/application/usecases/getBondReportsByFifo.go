@@ -15,7 +15,7 @@ func (s *Service) GetBondReportsByFifo(ctx context.Context, chatID int) (err err
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return e.WrapIfErr("get accounts error", err)
 	}
@@ -89,7 +89,7 @@ func (s *Service) processAccountForBondReportByFifo(ctx context.Context, chatID 
 			return e.WrapIfErr("update operation error", err)
 		}
 
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
 			return e.WrapIfErr("tinkoffGetPortfolio err", err)
 		}

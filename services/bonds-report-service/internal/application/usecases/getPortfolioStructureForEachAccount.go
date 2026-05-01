@@ -38,7 +38,7 @@ func (s *Service) GetPortfolioStructureForEachAccount(ctx context.Context) (_ do
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	response := domain.PortfolioStructureForEachAccountResponce{}
 	if err != nil {
 		return domain.PortfolioStructureForEachAccountResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
@@ -110,7 +110,7 @@ func (s *Service) getPortfolioStructure(ctx context.Context, account domain.Acco
 	case <-ctx.Done():
 		return "", ctx.Err()
 	default:
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
 			return "", e.WrapIfErr("cant' get portfolio from Tinkoff", err)
 		}

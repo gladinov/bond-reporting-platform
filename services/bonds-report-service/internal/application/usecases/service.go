@@ -1,10 +1,7 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
 	"bonds-report-service/internal/application/ports"
-	"context"
 	"log/slog"
 	"time"
 )
@@ -56,29 +53,29 @@ func NewExternalApis(
 }
 
 type Helpers struct {
-	BondReportProcessor        ports.BondReportProcessor
-	CbrGetter                  ports.CbrCurrencyGetter
-	GeneralBondReportProcessor ports.GeneralBondReportProcessor
-	MoexSpecificationGetter    ports.MoexSpecificationGetter
-	ReportProcessor            ports.ReportProcessor
-	TinkoffHelper              *tinkoffHelper.TinkoffHelper
-	OperationsUpdater          ports.OperationsUpdater
-	PositionProcessor          ports.PositionProcessor
-	ReportLineBuilder          ports.ReportLineBuilder
-	DividerByAssetType         ports.DividerByAssetType
+	BondReportProcessor        BondReportProcessor
+	CbrGetter                  CbrCurrencyGetter
+	GeneralBondReportProcessor GeneralBondReportProcessor
+	MoexSpecificationGetter    MoexSpecificationGetter
+	ReportProcessor            ReportProcessor
+	TinkoffProvider            TinkoffProvider
+	OperationsUpdater          OperationsUpdater
+	PositionProcessor          PositionProcessor
+	ReportLineBuilder          ReportLineBuilder
+	DividerByAssetType         DividerByAssetType
 }
 
 func NewHelpers(
-	bondReportProcessor ports.BondReportProcessor,
-	cbrGetter ports.CbrCurrencyGetter,
-	generalBondReportProcessor ports.GeneralBondReportProcessor,
-	moexSpecificationGetter ports.MoexSpecificationGetter,
-	reportProcessor ports.ReportProcessor,
-	tinkoffHelper *tinkoffHelper.TinkoffHelper,
-	operationsUpdater ports.OperationsUpdater,
-	positionProcessor ports.PositionProcessor,
-	reportLineBuilder ports.ReportLineBuilder,
-	dividerByAssetType ports.DividerByAssetType,
+	bondReportProcessor BondReportProcessor,
+	cbrGetter CbrCurrencyGetter,
+	generalBondReportProcessor GeneralBondReportProcessor,
+	moexSpecificationGetter MoexSpecificationGetter,
+	reportProcessor ReportProcessor,
+	tinkoffProvider TinkoffProvider,
+	operationsUpdater OperationsUpdater,
+	positionProcessor PositionProcessor,
+	reportLineBuilder ReportLineBuilder,
+	dividerByAssetType DividerByAssetType,
 ) *Helpers {
 	return &Helpers{
 		BondReportProcessor:        bondReportProcessor,
@@ -86,7 +83,7 @@ func NewHelpers(
 		GeneralBondReportProcessor: generalBondReportProcessor,
 		MoexSpecificationGetter:    moexSpecificationGetter,
 		ReportProcessor:            reportProcessor,
-		TinkoffHelper:              tinkoffHelper,
+		TinkoffProvider:            tinkoffProvider,
 		OperationsUpdater:          operationsUpdater,
 		PositionProcessor:          positionProcessor,
 		ReportLineBuilder:          reportLineBuilder,
@@ -102,11 +99,6 @@ type Service struct {
 	Storage       ports.Storage
 	Producer      Producer
 	now           func() time.Time
-}
-
-type Producer interface {
-	PublishFailedBondReportWithPng(ctx context.Context, reportKind, chatID, traceID, errCode, errMesage string) error
-	PublishBondReportWithPng(ctx context.Context, reportKind, chatID, traceID string, bondReportsResponce dto.BondReportsResponce) error
 }
 
 func NewService(

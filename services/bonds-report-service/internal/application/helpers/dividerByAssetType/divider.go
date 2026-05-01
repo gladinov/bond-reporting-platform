@@ -1,8 +1,6 @@
 package dividerbyassettype
 
 import (
-	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
-	"bonds-report-service/internal/application/ports"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -41,20 +39,20 @@ const (
 )
 
 type DividerByAssetType struct {
-	logger        *slog.Logger
-	CbrGetter     ports.CbrCurrencyGetter
-	TinkoffHelper *tinkoffHelper.TinkoffHelper
-	WorkersNumber int
-	now           func() time.Time
+	logger          *slog.Logger
+	CbrGetter       CbrCurrencyGetter
+	tinkoffProvider TinkoffProvider
+	WorkersNumber   int
+	now             func() time.Time
 }
 
-func NewDividerByAssetType(logger *slog.Logger, tinkoffHelper *tinkoffHelper.TinkoffHelper, cbrGetter ports.CbrCurrencyGetter, workerNumber int) *DividerByAssetType {
+func NewDividerByAssetType(logger *slog.Logger, tinkoffProvider TinkoffProvider, cbrGetter CbrCurrencyGetter, workerNumber int) *DividerByAssetType {
 	return &DividerByAssetType{
-		logger:        logger,
-		TinkoffHelper: tinkoffHelper,
-		CbrGetter:     cbrGetter,
-		WorkersNumber: workerNumber,
-		now:           time.Now,
+		logger:          logger,
+		tinkoffProvider: tinkoffProvider,
+		CbrGetter:       cbrGetter,
+		WorkersNumber:   workerNumber,
+		now:             time.Now,
 	}
 }
 
@@ -222,7 +220,7 @@ func (d *DividerByAssetType) processShare(pos domain.PortfolioPosition, vunit_ra
 func (d *DividerByAssetType) processFutures(ctx context.Context, pos domain.PortfolioPosition, vunit_rate float64) (*domain.PortfolioByTypeAndCurrency, error) {
 	portfolioWithOnePos := domain.NewPortfolioByTypeAndCurrency()
 	positionPrice := pos.Quantity.ToFloat() * pos.CurrentPrice.ToFloat() * vunit_rate
-	futures, err := d.TinkoffHelper.TinkoffGetFutureBy(ctx, pos.Figi)
+	futures, err := d.tinkoffProvider.TinkoffGetFutureBy(ctx, pos.Figi)
 	if err != nil {
 		return nil, e.WrapIfErr("can't get future data", err)
 	}
@@ -242,7 +240,7 @@ func (d *DividerByAssetType) processFutures(ctx context.Context, pos domain.Port
 		portfolioWithOnePos.FuturesAssets.AssetsByType.Currency.SumOfAssets += positionPrice
 
 	case securityType:
-		resp, err := d.TinkoffHelper.TinkoffGetBaseShareFutureValute(ctx, futures.BasicAssetPositionUid)
+		resp, err := d.tinkoffProvider.TinkoffGetBaseShareFutureValute(ctx, futures.BasicAssetPositionUid)
 		if err != nil {
 			return nil, e.WrapIfErr("can't dget base share future valute from tinkoff", err)
 		}
@@ -279,7 +277,7 @@ func (d *DividerByAssetType) processEtf(pos domain.PortfolioPosition, vunit_rate
 func (d *DividerByAssetType) processCurrency(ctx context.Context, pos domain.PortfolioPosition, vunit_rate float64) (*domain.PortfolioByTypeAndCurrency, error) {
 	portfolioWithOnePos := domain.NewPortfolioByTypeAndCurrency()
 	positionPrice := pos.Quantity.ToFloat() * pos.CurrentPrice.ToFloat() * vunit_rate
-	curr, err := d.TinkoffHelper.TinkoffGetCurrencyBy(ctx, pos.Figi)
+	curr, err := d.tinkoffProvider.TinkoffGetCurrencyBy(ctx, pos.Figi)
 	if err != nil {
 		return nil, e.WrapIfErr("can't get currency by figi from tinkoff", err)
 	}

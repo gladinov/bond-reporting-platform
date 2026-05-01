@@ -28,7 +28,7 @@ func (s *Service) GetBondReports(ctx context.Context, chatID int) (_ dto.BondRep
 
 	reportsInByteByAccounts := make([][]*dto.MediaGroup, 0)
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return dto.BondReportsResponce{}, e.WrapIfErr("failde to get accounts from Tinkoff", err)
 	}
@@ -97,7 +97,7 @@ func (s *Service) ProduceBondReports(ctx context.Context, reportKind, traceID, c
 		return s.handleProduceError(ctx, reportKind, chatIDStr, traceID, dto.ErrInternal, "internal err", "failed to convert chatID to int", err)
 	}
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return s.handleProduceError(ctx, reportKind, chatIDStr, traceID, dto.ErrTinkoffAPI, "tinkoff API err", "failed to get accounts from Tinkoff", err)
 	}
@@ -294,7 +294,7 @@ func (s *Service) processAccount(ctx context.Context, chatID int, account domain
 		if err != nil {
 			return generalbondreport.GeneralBondReports{}, e.WrapIfErr("failed to update operations", err)
 		}
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
 			return generalbondreport.GeneralBondReports{}, e.WrapIfErr("failed to get portfolio from tinkoff", err)
 		}

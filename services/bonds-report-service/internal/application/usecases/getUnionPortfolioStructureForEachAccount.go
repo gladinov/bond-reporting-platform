@@ -17,7 +17,7 @@ func (s *Service) GetUnionPortfolioStructureForEachAccount(ctx context.Context) 
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	response := domain.UnionPortfolioStructureResponce{}
 	if err != nil {
 		return domain.UnionPortfolioStructureResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
@@ -100,7 +100,7 @@ loop:
 
 func (s *Service) portfolioWorkers(p *pipeline, in <-chan domain.Account, out chan<- domain.Portfolio) {
 	for account := range in {
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(p.ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(p.ctx, account)
 		if err != nil {
 			p.sendErr(e.WrapIfErr("can't get portfolio from Tinkoff", err))
 			return

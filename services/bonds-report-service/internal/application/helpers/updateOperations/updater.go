@@ -1,7 +1,6 @@
 package updateoperations
 
 import (
-	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
 	"bonds-report-service/internal/application/ports"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/domain/mapper"
@@ -15,16 +14,16 @@ import (
 )
 
 type Updater struct {
-	logger        *slog.Logger
-	Storage       ports.Storage
-	TinkoffHelper *tinkoffHelper.TinkoffHelper
+	logger                  *slog.Logger
+	Storage                 ports.Storage
+	tinkoffOperationsGetter TinkoffOperationsProvider
 }
 
-func NewUpdater(logger *slog.Logger, storage ports.Storage, tinkoffHelper *tinkoffHelper.TinkoffHelper) *Updater {
+func NewUpdater(logger *slog.Logger, storage ports.Storage, tinkoffOperationsGetter TinkoffOperationsProvider) *Updater {
 	return &Updater{
-		logger:        logger,
-		Storage:       storage,
-		TinkoffHelper: tinkoffHelper,
+		logger:                  logger,
+		Storage:                 storage,
+		tinkoffOperationsGetter: tinkoffOperationsGetter,
 	}
 }
 
@@ -52,7 +51,7 @@ func (h *Updater) UpdateOperations(ctx context.Context,
 
 	opRequest := domain.NewOperationsRequest(accountID, fromDate)
 
-	tinkoffOperations, err := h.TinkoffHelper.TinkoffGetOperations(ctx, opRequest)
+	tinkoffOperations, err := h.tinkoffOperationsGetter.TinkoffGetOperations(ctx, opRequest)
 	if err != nil {
 		return e.WrapIfErr("can't get operations from tinkoff", err)
 	}

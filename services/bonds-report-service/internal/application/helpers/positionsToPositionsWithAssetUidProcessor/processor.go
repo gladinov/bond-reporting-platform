@@ -1,7 +1,6 @@
 package positionProcessor
 
 import (
-	"bonds-report-service/internal/application/ports"
 	"bonds-report-service/internal/domain"
 	"context"
 	"errors"
@@ -12,10 +11,10 @@ import (
 
 type Processor struct {
 	logger      *slog.Logger
-	UidProvider ports.UidProvider
+	UidProvider UidProvider
 }
 
-func NewProcessor(logger *slog.Logger, uidProvider ports.UidProvider) *Processor {
+func NewProcessor(logger *slog.Logger, uidProvider UidProvider) *Processor {
 	return &Processor{
 		logger:      logger,
 		UidProvider: uidProvider,

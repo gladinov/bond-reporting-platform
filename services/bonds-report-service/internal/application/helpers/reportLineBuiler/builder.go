@@ -1,8 +1,6 @@
 package reportlinebuiler
 
 import (
-	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
-	"bonds-report-service/internal/application/ports"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -15,15 +13,15 @@ import (
 
 type ReportLineBuilder struct {
 	logger            *slog.Logger
-	TinkoffHelper     *tinkoffHelper.TinkoffHelper
-	CbrCurrencyGetter ports.CbrCurrencyGetter
+	tinkoffProvider   TinkoffProvider
+	CbrCurrencyGetter CbrCurrencyGetter
 	now               func() time.Time
 }
 
-func NewReportLineBuilder(logger *slog.Logger, tinkoffHelper *tinkoffHelper.TinkoffHelper, cbrCurrencyGetter ports.CbrCurrencyGetter) *ReportLineBuilder {
+func NewReportLineBuilder(logger *slog.Logger, tinkoffProvider TinkoffProvider, cbrCurrencyGetter CbrCurrencyGetter) *ReportLineBuilder {
 	return &ReportLineBuilder{
 		logger:            logger,
-		TinkoffHelper:     tinkoffHelper,
+		tinkoffProvider:   tinkoffProvider,
 		CbrCurrencyGetter: cbrCurrencyGetter,
 	}
 }
@@ -50,7 +48,7 @@ func (b *ReportLineBuilder) CreateNewReportLines(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		price, e := b.TinkoffHelper.TinkoffGetLastPriceInPersentageToNominal(ctx, position.InstrumentUid)
+		price, e := b.tinkoffProvider.TinkoffGetLastPriceInPersentageToNominal(ctx, position.InstrumentUid)
 		if e != nil {
 			select {
 			case errCh <- e:
@@ -66,7 +64,7 @@ func (b *ReportLineBuilder) CreateNewReportLines(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		actions, e := b.TinkoffHelper.TinkoffGetBondActions(ctx, position.InstrumentUid)
+		actions, e := b.tinkoffProvider.TinkoffGetBondActions(ctx, position.InstrumentUid)
 		if e != nil {
 			select {
 			case errCh <- e:
