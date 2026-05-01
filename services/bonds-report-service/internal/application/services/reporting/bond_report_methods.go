@@ -1,30 +1,25 @@
-package bondreport
+package reporting
 
 import (
 	"bonds-report-service/internal/domain"
 	report "bonds-report-service/internal/domain/report"
 	report_position "bonds-report-service/internal/domain/report_position"
-	"bonds-report-service/internal/utils/logging"
-	"context"
+	"time"
 
 	"github.com/gladinov/e"
 )
 
-func (s *BondReporter) CreateBondReport(
-	ctx context.Context,
+func CreateBondReport(
+	now time.Time,
 	currentPositions []report_position.PositionByFIFO,
 	moexBuyDateData domain.ValuesMoex,
 	moexNowData domain.ValuesMoex,
 ) (_ report.Report, err error) {
-	const op = "service.CreateBondReport"
-
-	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
-
 	var resultReports report.Report
 
 	for i := range currentPositions {
 		position := &currentPositions[i]
-		err := resultReports.Add(position, moexBuyDateData, moexNowData, s.now())
+		err := resultReports.Add(position, moexBuyDateData, moexNowData, now)
 		if err != nil {
 			return report.Report{}, e.WrapIfErr("failed to add result reports", err)
 		}

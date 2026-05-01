@@ -3,34 +3,9 @@ package usecases
 import (
 	"bonds-report-service/internal/application/dto"
 	"bonds-report-service/internal/domain"
-	"bonds-report-service/internal/domain/generalbondreport"
-	report "bonds-report-service/internal/domain/report"
-	report_position "bonds-report-service/internal/domain/report_position"
 	"context"
 	"time"
 )
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=GeneralBondReportProcessor
-type GeneralBondReportProcessor interface {
-	GetGeneralBondReportPosition(
-		ctx context.Context,
-		currentPositions []report_position.PositionByFIFO,
-		totalAmount float64,
-		moexBuyDateData domain.ValuesMoex,
-		moexNowData domain.ValuesMoex,
-		firstBondsBuyDate time.Time,
-	) (generalbondreport.GeneralBondReportPosition, error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=BondReportProcessor
-type BondReportProcessor interface {
-	CreateBondReport(ctx context.Context, currentPositions []report_position.PositionByFIFO, moexBuyDateData domain.ValuesMoex, moexNowData domain.ValuesMoex) (report.Report, error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=ReportProcessor
-type ReportProcessor interface {
-	ProcessOperations(ctx context.Context, reportLine *domain.ReportLine) (*report_position.ReportPositions, error)
-}
 
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=CbrCurrencyGetter
 type CbrCurrencyGetter interface {

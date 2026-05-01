@@ -1,4 +1,4 @@
-package unionportf
+package dividerbyassettype
 
 import "bonds-report-service/internal/domain"
 

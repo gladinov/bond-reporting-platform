@@ -3,6 +3,7 @@ package usecases
 import (
 	"bonds-report-service/internal/application/dto"
 	"bonds-report-service/internal/application/presenter"
+	"bonds-report-service/internal/application/services/reporting"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/domain/generalbondreport"
 	"bonds-report-service/internal/utils/logging"
@@ -434,7 +435,7 @@ func (s *Service) processBondPosition(ctx context.Context,
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to create new report lines", err)
 		}
 		// Обрабатываем операции и получаем открытые позиции по данной бумаге
-		resultBondPosition, err := s.Helpers.ReportProcessor.ProcessOperations(ctx, reporLines)
+		resultBondPosition, err := reporting.ProcessOperations(ctx, reporLines)
 		if err != nil {
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to process operation", err)
 		}
@@ -460,14 +461,16 @@ func (s *Service) processBondPosition(ctx context.Context,
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to get specifications from moex to buy now", err)
 		}
 
-		bondReport, err := s.Helpers.GeneralBondReportProcessor.GetGeneralBondReportPosition(
-			ctx,
+		bondReport := generalbondreport.GeneralBondReportPosition{}
+		err = bondReport.CreateGeneralBondReportPosition(
 			resultBondPosition.CurrentPositions,
 			totalAmount,
 			moexBuyDateData,
-			moexNowData, firstBuyDate)
+			moexNowData,
+			firstBuyDate,
+		)
 		if err != nil {
-			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to get general bond report position", err)
+			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to create general bond report position", err)
 		}
 		return bondReport, nil
 	}

@@ -1,7 +1,7 @@
 package usecases
 
 // import (
-// 	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
+// 	tinkoffHelper "bonds-report-service/internal/application/services/tinkoff"
 // 	"bonds-report-service/internal/application/ports/mocks"
 // 	"log/slog"
 // 	"testing"

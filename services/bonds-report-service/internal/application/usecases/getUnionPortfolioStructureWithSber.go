@@ -2,8 +2,8 @@ package usecases
 
 import (
 	"bonds-report-service/internal/application/dto"
-	unionportf "bonds-report-service/internal/application/helpers/unionPortf"
 	"bonds-report-service/internal/application/presenter"
+	portfolio "bonds-report-service/internal/application/services/portfolio"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -91,7 +91,7 @@ loop:
 		}
 	}
 
-	unionPositions := unionportf.UnionPortf(positionsList)
+	unionPositions := portfolio.UnionPortf(positionsList)
 
 	vizualizeUnionPositions := presenter.ResponsePortfolioStructure(ctx, s.logger, unionPositions, dto.UnionPortfWithSber, "")
 

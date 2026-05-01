@@ -53,24 +53,18 @@ func NewExternalApis(
 }
 
 type Helpers struct {
-	BondReportProcessor        BondReportProcessor
-	CbrGetter                  CbrCurrencyGetter
-	GeneralBondReportProcessor GeneralBondReportProcessor
-	MoexSpecificationGetter    MoexSpecificationGetter
-	ReportProcessor            ReportProcessor
-	TinkoffProvider            TinkoffProvider
-	OperationsUpdater          OperationsUpdater
-	PositionProcessor          PositionProcessor
-	ReportLineBuilder          ReportLineBuilder
-	DividerByAssetType         DividerByAssetType
+	CbrGetter               CbrCurrencyGetter
+	MoexSpecificationGetter MoexSpecificationGetter
+	TinkoffProvider         TinkoffProvider
+	OperationsUpdater       OperationsUpdater
+	PositionProcessor       PositionProcessor
+	ReportLineBuilder       ReportLineBuilder
+	DividerByAssetType      DividerByAssetType
 }
 
 func NewHelpers(
-	bondReportProcessor BondReportProcessor,
 	cbrGetter CbrCurrencyGetter,
-	generalBondReportProcessor GeneralBondReportProcessor,
 	moexSpecificationGetter MoexSpecificationGetter,
-	reportProcessor ReportProcessor,
 	tinkoffProvider TinkoffProvider,
 	operationsUpdater OperationsUpdater,
 	positionProcessor PositionProcessor,
@@ -78,16 +72,13 @@ func NewHelpers(
 	dividerByAssetType DividerByAssetType,
 ) *Helpers {
 	return &Helpers{
-		BondReportProcessor:        bondReportProcessor,
-		CbrGetter:                  cbrGetter,
-		GeneralBondReportProcessor: generalBondReportProcessor,
-		MoexSpecificationGetter:    moexSpecificationGetter,
-		ReportProcessor:            reportProcessor,
-		TinkoffProvider:            tinkoffProvider,
-		OperationsUpdater:          operationsUpdater,
-		PositionProcessor:          positionProcessor,
-		ReportLineBuilder:          reportLineBuilder,
-		DividerByAssetType:         dividerByAssetType,
+		CbrGetter:               cbrGetter,
+		MoexSpecificationGetter: moexSpecificationGetter,
+		TinkoffProvider:         tinkoffProvider,
+		OperationsUpdater:       operationsUpdater,
+		PositionProcessor:       positionProcessor,
+		ReportLineBuilder:       reportLineBuilder,
+		DividerByAssetType:      dividerByAssetType,
 	}
 }
 
