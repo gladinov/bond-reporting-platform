@@ -1,8 +1,6 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	"bonds-report-service/internal/application/presenter"
 	portfolio "bonds-report-service/internal/application/services/portfolio"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
@@ -26,12 +24,12 @@ func (s *Service) GetUnionPortfolioStructureForEachAccount(ctx context.Context) 
 	if err != nil {
 		return domain.UnionPortfolioStructureResponce{}, e.WrapIfErr("cant' get union portfolio structure", err)
 	}
-	response.Report = unionPortfolioStructure
+	response.Portfolio = unionPortfolioStructure
 
 	return response, nil
 }
 
-func (s *Service) getUnionPortfolioStructure(ctx context.Context, accounts map[string]domain.Account) (_ string, err error) {
+func (s *Service) getUnionPortfolioStructure(ctx context.Context, accounts map[string]domain.Account) (_ *domain.PortfolioByTypeAndCurrency, err error) {
 	const op = "service.getUnionPortfolioStructure"
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
@@ -80,10 +78,10 @@ loop:
 	for {
 		select {
 		case <-ctxWorkers.Done():
-			return "", ctxWorkers.Err()
+			return nil, ctxWorkers.Err()
 		case er := <-errCh:
 			cancel()
-			return "", er
+			return nil, er
 		case portfolioStructure, ok := <-portfolioStructCh:
 			if !ok {
 				break loop
@@ -93,9 +91,7 @@ loop:
 	}
 	unionPositions := portfolio.UnionPortf(positionsList)
 
-	vizualizeUnionPositions := presenter.ResponsePortfolioStructure(ctx, s.logger, unionPositions, dto.UnionPortf, "")
-
-	return vizualizeUnionPositions, nil
+	return unionPositions, nil
 }
 
 func (s *Service) portfolioWorkers(p *pipeline, in <-chan domain.Account, out chan<- domain.Portfolio) {

@@ -28,10 +28,6 @@ func NewImageData() *ImageData {
 	return &ImageData{}
 }
 
-type UnionPortfolioStructureWithSberResponce struct {
-	Report string
-}
-
 // type ResponceReportFailed struct {
 // 	ReportKind   string
 // 	ChatID       string

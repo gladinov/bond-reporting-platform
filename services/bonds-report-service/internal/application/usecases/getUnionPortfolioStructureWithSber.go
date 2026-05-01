@@ -1,8 +1,6 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	"bonds-report-service/internal/application/presenter"
 	portfolio "bonds-report-service/internal/application/services/portfolio"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
@@ -19,15 +17,15 @@ var (
 	ErrpositionsClassCodeVariants = errors.New("positions class code variants are empty")
 )
 
-func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ dto.UnionPortfolioStructureWithSberResponce, err error) {
+func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ domain.UnionPortfolioStructureWithSberResponce, err error) {
 	const op = "service.GetUnionPortfolioStructureWithSber"
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	responce := dto.UnionPortfolioStructureWithSberResponce{}
+	responce := domain.UnionPortfolioStructureWithSberResponce{}
 	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
-		return dto.UnionPortfolioStructureWithSberResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
+		return domain.UnionPortfolioStructureWithSberResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
 	}
 
 	ctxWorkers, cancel := context.WithCancel(ctx)
@@ -72,11 +70,11 @@ loop:
 	for {
 		select {
 		case er := <-errCh:
-			return dto.UnionPortfolioStructureWithSberResponce{}, er
+			return domain.UnionPortfolioStructureWithSberResponce{}, er
 		default:
 			select {
 			case <-ctxWorkers.Done():
-				return dto.UnionPortfolioStructureWithSberResponce{}, ctxWorkers.Err()
+				return domain.UnionPortfolioStructureWithSberResponce{}, ctxWorkers.Err()
 			case portfolio, ok := <-portfolioCh:
 				if !ok {
 					break loop
@@ -85,7 +83,7 @@ loop:
 					positionsList = append(positionsList, portfolio)
 				}
 			case er := <-errCh:
-				return dto.UnionPortfolioStructureWithSberResponce{}, er
+				return domain.UnionPortfolioStructureWithSberResponce{}, er
 
 			}
 		}
@@ -93,9 +91,7 @@ loop:
 
 	unionPositions := portfolio.UnionPortf(positionsList)
 
-	vizualizeUnionPositions := presenter.ResponsePortfolioStructure(ctx, s.logger, unionPositions, dto.UnionPortfWithSber, "")
-
-	responce.Report = vizualizeUnionPositions
+	responce.Portfolio = unionPositions
 	return responce, nil
 }
 

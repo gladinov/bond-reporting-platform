@@ -2,6 +2,7 @@ package handlers
 
 import (
 	httpmodels "bonds-report-service/internal/adapters/inbound/gateway/http"
+	gatewaypresenter "bonds-report-service/internal/adapters/inbound/gateway/presenter"
 	"bonds-report-service/internal/application/dto"
 	"bonds-report-service/internal/domain"
 )
@@ -61,8 +62,17 @@ func MapPortfolioStructureForEachAccountToHTTP(pf *domain.PortfolioStructureForE
 	if pf == nil {
 		return nil
 	}
+	portfolioStructures := make([]string, 0, len(pf.PortfolioStructures))
+	for _, portfolioStructure := range pf.PortfolioStructures {
+		portfolioStructures = append(portfolioStructures, gatewaypresenter.ResponsePortfolioStructure(
+			portfolioStructure.Portfolio,
+			gatewaypresenter.EachPortfolio,
+			portfolioStructure.AccountName,
+		))
+	}
+
 	return &httpmodels.PortfolioStructureForEachAccountResponce{
-		PortfolioStructures: pf.PortfolioStructures,
+		PortfolioStructures: portfolioStructures,
 	}
 }
 
@@ -71,16 +81,16 @@ func MapUnionPortfolioStructureToHTTP(u *domain.UnionPortfolioStructureResponce)
 		return nil
 	}
 	return &httpmodels.UnionPortfolioStructureResponce{
-		Report: u.Report,
+		Report: gatewaypresenter.ResponsePortfolioStructure(u.Portfolio, gatewaypresenter.UnionPortfolio, ""),
 	}
 }
 
-func MapUnionPortfolioStructureWithSberToHTTP(u *dto.UnionPortfolioStructureWithSberResponce) *httpmodels.UnionPortfolioStructureWithSberResponce {
+func MapUnionPortfolioStructureWithSberToHTTP(u *domain.UnionPortfolioStructureWithSberResponce) *httpmodels.UnionPortfolioStructureWithSberResponce {
 	if u == nil {
 		return nil
 	}
 	return &httpmodels.UnionPortfolioStructureWithSberResponce{
-		Report: u.Report,
+		Report: gatewaypresenter.ResponsePortfolioStructure(u.Portfolio, gatewaypresenter.UnionPortfolioWithSber, ""),
 	}
 }
 
