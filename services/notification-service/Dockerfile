@@ -2,7 +2,7 @@ FROM golang:1.25.1-alpine AS builder
 
 WORKDIR /usr/local/src
 
-RUN apk add --no-cache bash git make gettext gcc musl-dev
+RUN apk add --no-cache bash git make gettext
 
 # dependencies
 COPY ["go.mod","go.sum","./"]
