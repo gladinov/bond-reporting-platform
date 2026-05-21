@@ -299,7 +299,7 @@ services:
     volumes:
       - ../services/moexApi/configs/local.yaml:/usr/local/src/configs/local.yaml:ro
     ports:
-      - "${MOEX_API_PORT}:8083"
+      - "${MOEX_API_PORT}:8081"
     networks:
       - myapp_network
   

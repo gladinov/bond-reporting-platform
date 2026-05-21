@@ -91,7 +91,6 @@ func (a *App) Run() error {
 
 	a.logger.Info("start app",
 		slog.String("env", a.config.Env),
-		slog.String("host", a.config.MoexHost),
 		slog.String("moex_app_host", a.config.Clients.MoexApiAppClient.Host),
 		slog.String("moex_app_port", a.config.Clients.MoexApiAppClient.Port))
 

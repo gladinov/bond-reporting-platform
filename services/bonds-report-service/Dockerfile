@@ -9,7 +9,7 @@ COPY ["go.mod","go.sum","./"]
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go build -o ./bin/bond-report-service ./cmd/app/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o ./bin/bond-report-service ./cmd/app/main.go
 
 FROM alpine AS runner
 

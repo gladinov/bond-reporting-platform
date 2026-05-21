@@ -25,6 +25,11 @@ build-up:
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --remove-orphans
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d --build
 
+build-up-low-resource:
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --remove-orphans
+	DOCKER_BUILDKIT=0 docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) build
+	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d
+
 down:
 	docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down -v
 

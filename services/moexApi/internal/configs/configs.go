@@ -20,7 +20,7 @@ type Config struct {
 }
 
 type Clients struct {
-	MoexApiAppClient MoexApiAppClient
+	MoexApiAppClient MoexApiAppClient `yaml:"moexApiAppClient"`
 }
 
 type Timeouts struct {
@@ -77,8 +77,10 @@ func InjectEnvs() (Envs, error) {
 		return Envs{}, errors.New("CONFIG_PATH environment variable is required")
 	}
 
-	envs := Envs{RootPath: rootPath,
-		ConfigPath: configPath}
+	envs := Envs{
+		RootPath:   rootPath,
+		ConfigPath: configPath,
+	}
 
 	return envs, nil
 }
