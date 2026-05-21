@@ -4,3 +4,11 @@ redisHTTP:
   max_retries: 5
   dial_timeout: 10s
   timeout: 5s
+timeouts:
+  http_read_header_timeout: 10s
+  http_read_timeout: 10s
+  http_write_timeout: 10s
+  http_idle_timeout: 60s
+  http_shutdown_timeout: 7s
+  request_timeout: 5s
+  app_close_timeout: 3s

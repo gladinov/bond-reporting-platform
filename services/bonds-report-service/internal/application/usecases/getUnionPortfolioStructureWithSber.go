@@ -1,9 +1,7 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	unionportf "bonds-report-service/internal/application/helpers/unionPortf"
-	"bonds-report-service/internal/application/presenter"
+	portfolio "bonds-report-service/internal/application/services/portfolio"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -19,15 +17,15 @@ var (
 	ErrpositionsClassCodeVariants = errors.New("positions class code variants are empty")
 )
 
-func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ dto.UnionPortfolioStructureWithSberResponce, err error) {
+func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ domain.UnionPortfolioStructureWithSberResponce, err error) {
 	const op = "service.GetUnionPortfolioStructureWithSber"
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	responce := dto.UnionPortfolioStructureWithSberResponce{}
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	responce := domain.UnionPortfolioStructureWithSberResponce{}
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
-		return dto.UnionPortfolioStructureWithSberResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
+		return domain.UnionPortfolioStructureWithSberResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
 	}
 
 	ctxWorkers, cancel := context.WithCancel(ctx)
@@ -51,7 +49,7 @@ func (s *Service) GetUnionPortfolioStructureWithSber(ctx context.Context) (_ dto
 	wgStage1.Add(1)
 	go func() {
 		defer wgStage1.Done()
-		sberPortfolio, sberErr := s.divideByTypeFromSber(ctxWorkers, s.External.Sber.Portfolio)
+		sberPortfolio, sberErr := s.divideByTypeFromSber(ctxWorkers, s.External.Sber.GetPortfolio())
 		if sberErr != nil {
 			pipeline.sendErr(e.WrapIfErr("couldnot divide by type from sber", sberErr))
 			return
@@ -72,11 +70,11 @@ loop:
 	for {
 		select {
 		case er := <-errCh:
-			return dto.UnionPortfolioStructureWithSberResponce{}, er
+			return domain.UnionPortfolioStructureWithSberResponce{}, er
 		default:
 			select {
 			case <-ctxWorkers.Done():
-				return dto.UnionPortfolioStructureWithSberResponce{}, ctxWorkers.Err()
+				return domain.UnionPortfolioStructureWithSberResponce{}, ctxWorkers.Err()
 			case portfolio, ok := <-portfolioCh:
 				if !ok {
 					break loop
@@ -85,23 +83,21 @@ loop:
 					positionsList = append(positionsList, portfolio)
 				}
 			case er := <-errCh:
-				return dto.UnionPortfolioStructureWithSberResponce{}, er
+				return domain.UnionPortfolioStructureWithSberResponce{}, er
 
 			}
 		}
 	}
 
-	unionPositions := unionportf.UnionPortf(positionsList)
+	unionPositions := portfolio.UnionPortf(positionsList)
 
-	vizualizeUnionPositions := presenter.ResponsePortfolioStructure(ctx, s.logger, unionPositions, dto.UnionPortfWithSber, "")
-
-	responce.Report = vizualizeUnionPositions
+	responce.Portfolio = unionPositions
 	return responce, nil
 }
 
 func (s *Service) worker(p *pipeline, in <-chan domain.Account, out chan<- *domain.PortfolioByTypeAndCurrency) {
 	for account := range in {
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(p.ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(p.ctx, account)
 		if err != nil {
 			p.sendErr(e.WrapIfErr("cant' get portfolio from Tinkoff", err))
 			return
@@ -132,7 +128,7 @@ func (s *Service) divideByTypeFromSber(ctx context.Context, positions map[string
 		return portfolio, ErrEmptyPosition
 	}
 	for ticker, quantity := range positions {
-		positionsClassCodeVariants, err := s.Helpers.TinkoffHelper.TinkoffFindBy(ctx, ticker)
+		positionsClassCodeVariants, err := s.Helpers.TinkoffProvider.TinkoffFindBy(ctx, ticker)
 		if err != nil {
 			return nil, e.WrapIfErr("can't find by ticker from tinkoff", err)
 		}
@@ -143,13 +139,13 @@ func (s *Service) divideByTypeFromSber(ctx context.Context, positions map[string
 		switch positionsClassCodeVariants[0].InstrumentType {
 		case bond:
 			bondUid := positionsClassCodeVariants[0].Uid
-			bond, err := s.Helpers.TinkoffHelper.TinkoffGetBondByUid(ctx, bondUid)
+			bond, err := s.Helpers.TinkoffProvider.TinkoffGetBondByUid(ctx, bondUid)
 			if err != nil {
 				return nil, e.WrapIfErr("can't get bond by uid from tinkoff", err)
 			}
 			currentNkd := bond.AciValue.ToFloat()
 			currency := bond.Currency
-			resp, err := s.Helpers.TinkoffHelper.TinkoffGetLastPriceInPersentageToNominal(ctx, bondUid)
+			resp, err := s.Helpers.TinkoffProvider.TinkoffGetLastPriceInPersentageToNominal(ctx, bondUid)
 			if err != nil {
 				return nil, e.WrapIfErr("can't get last price in persentage to nominal from tinkoff", err)
 			}

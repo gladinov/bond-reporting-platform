@@ -4,7 +4,6 @@ import (
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/domain/generalbondreport"
 	report "bonds-report-service/internal/domain/report"
-	report_position "bonds-report-service/internal/domain/report_position"
 	"context"
 	"time"
 )
@@ -17,6 +16,10 @@ type Storage interface {
 	CurrencyStorage
 	UidsStorage
 	CloseStorage
+}
+
+type SberClient interface {
+	GetPortfolio() map[string]float64
 }
 
 type OperationStorage interface {
@@ -48,35 +51,7 @@ type UidsStorage interface {
 }
 
 type CloseStorage interface {
-	CloseDB()
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=GeneralBondReportProcessor
-type GeneralBondReportProcessor interface {
-	GetGeneralBondReportPosition(
-		ctx context.Context,
-		currentPositions []report_position.PositionByFIFO,
-		totalAmount float64,
-		moexBuyDateData domain.ValuesMoex,
-		moexNowData domain.ValuesMoex,
-		firstBondsBuyDate time.Time,
-	) (_ generalbondreport.GeneralBondReportPosition, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=BondReportProcessor
-type BondReportProcessor interface {
-	CreateBondReport(ctx context.Context, currentPositions []report_position.PositionByFIFO, moexBuyDateData domain.ValuesMoex, moexNowData domain.ValuesMoex) (_ report.Report, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=ReportProcessor
-type ReportProcessor interface {
-	ProcessOperations(ctx context.Context, reportLine *domain.ReportLine) (_ *report_position.ReportPositions, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=UidProvider
-type UidProvider interface {
-	GetUid(ctx context.Context, instrumentUid string) (string, error)
-	UpdateAndGetUid(ctx context.Context, instrumentUid string) (string, error)
+	Close() error
 }
 
 //go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=CbrClient
@@ -110,34 +85,4 @@ type TinkoffAnalyticsClient interface {
 	GetLastPriceInPersentageToNominal(ctx context.Context, instrumentUid string) (domain.LastPrice, error)
 	GetAllAssetUids(ctx context.Context) (map[string]string, error)
 	GetBondsActions(ctx context.Context, instrumentUid string) (domain.BondIdentIdentifiers, error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=CbrCurrencyGetter
-type CbrCurrencyGetter interface {
-	GetCurrencyFromCB(ctx context.Context, charCode string, date time.Time) (vunit_rate float64, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=MoexSpecificationGetter
-type MoexSpecificationGetter interface {
-	GetSpecificationsFromMoex(ctx context.Context, ticker string, date time.Time) (data domain.ValuesMoex, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=OperationsUpdater
-type OperationsUpdater interface {
-	UpdateOperations(ctx context.Context, chatID int, accountID string, openDate time.Time) (err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=PositionProcessor
-type PositionProcessor interface {
-	ProcessPositionsToPositionsWithAssetUid(ctx context.Context, portffolioPositions []domain.PortfolioPosition) (_ []domain.PortfolioPositionsWithAssetUid, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=ReportLineBuilder
-type ReportLineBuilder interface {
-	CreateNewReportLines(ctx context.Context, position domain.PortfolioPositionsWithAssetUid, operationsDb []domain.OperationWithoutCustomTypes) (_ *domain.ReportLine, err error)
-}
-
-//go:generate go run github.com/vektra/mockery/v2@v2.53.5 --name=DividerByAssetType
-type DividerByAssetType interface {
-	DivideByType(ctx context.Context, positions []domain.PortfolioPosition) (_ *domain.PortfolioByTypeAndCurrency, err error)
 }

@@ -3,12 +3,14 @@ package usecases
 import (
 	"bonds-report-service/internal/application/dto"
 	"bonds-report-service/internal/application/presenter"
+	"bonds-report-service/internal/application/services/reporting"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/domain/generalbondreport"
 	"bonds-report-service/internal/utils/logging"
 	"context"
 	"errors"
 	"log/slog"
+	"strconv"
 	"sync"
 
 	"github.com/gladinov/e"
@@ -16,7 +18,6 @@ import (
 
 type reportJob struct {
 	GeneralBondReport generalbondreport.GeneralBondReports
-	AccountID         string
 }
 
 var ErrEmptyBondPositions = errors.New("len of result bond positions is empty")
@@ -27,7 +28,7 @@ func (s *Service) GetBondReports(ctx context.Context, chatID int) (_ dto.BondRep
 
 	reportsInByteByAccounts := make([][]*dto.MediaGroup, 0)
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return dto.BondReportsResponce{}, e.WrapIfErr("failde to get accounts from Tinkoff", err)
 	}
@@ -55,7 +56,7 @@ func (s *Service) GetBondReports(ctx context.Context, chatID int) (_ dto.BondRep
 		wgStage2.Add(1)
 		go func() {
 			defer wgStage2.Done()
-			s.renderReportsWorker(ctxWorkers, reportsCh, errCh, mediaGroupsCh, chatID)
+			s.renderReportsWorker(ctxWorkers, reportsCh, errCh, mediaGroupsCh)
 		}()
 	}
 
@@ -85,6 +86,95 @@ loop:
 
 	getBondReportsResponce := dto.BondReportsResponce{Media: reportsInByteByAccounts}
 	return getBondReportsResponce, nil
+}
+
+func (s *Service) ProduceBondReports(ctx context.Context, reportKind, traceID, chatIDStr string) (err error) {
+	const op = "service.ProduceBondReports"
+	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
+
+	chatID, err := strconv.Atoi(chatIDStr)
+	if err != nil {
+		return s.handleProduceError(ctx, reportKind, chatIDStr, traceID, dto.ErrInternal, "internal err", "failed to convert chatID to int", err)
+	}
+
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
+	if err != nil {
+		return s.handleProduceError(ctx, reportKind, chatIDStr, traceID, dto.ErrTinkoffAPI, "tinkoff API err", "failed to get accounts from Tinkoff", err)
+	}
+
+	reportsInBytes, err := s.buildBondReportsPipeline(ctx, accounts, chatID)
+	if err != nil {
+		return s.handleProduceError(ctx, reportKind, chatIDStr, traceID, dto.ErrInternal, "internal err", "failed to build bond reports", err)
+	}
+
+	response := dto.BondReportsResponce{Media: reportsInBytes}
+	return s.Producer.PublishBondReportWithPng(ctx, reportKind, chatIDStr, traceID, response)
+}
+
+func (s *Service) buildBondReportsPipeline(
+	ctx context.Context,
+	accounts map[string]domain.Account,
+	chatID int,
+) ([][]*dto.MediaGroup, error) {
+	if len(accounts) == 0 {
+		return nil, nil
+	}
+
+	workersCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	workers := min(len(accounts), s.WorkersNumber)
+
+	reportsCh := make(chan reportJob, workers)
+	mediaGroupsCh := make(chan []*dto.MediaGroup, workers*2)
+	errCh := make(chan error, 1)
+
+	accountsCh := s.produceAccounts(workersCtx, accounts)
+
+	var wgFetch sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wgFetch.Add(1)
+		go func() {
+			defer wgFetch.Done()
+			s.fetchReportsWorker(workersCtx, accountsCh, errCh, reportsCh, chatID)
+		}()
+	}
+
+	var wgRender sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wgRender.Add(1)
+		go func() {
+			defer wgRender.Done()
+			s.renderReportsWorker(workersCtx, reportsCh, errCh, mediaGroupsCh)
+		}()
+	}
+
+	go func() {
+		wgFetch.Wait()
+		close(reportsCh)
+	}()
+
+	go func() {
+		wgRender.Wait()
+		close(mediaGroupsCh)
+	}()
+
+	var result [][]*dto.MediaGroup
+
+	for {
+		select {
+		case pipelineErr := <-errCh:
+			if pipelineErr != nil {
+				cancel()
+				return nil, pipelineErr
+			}
+		case mediaGroups, ok := <-mediaGroupsCh:
+			if !ok {
+				return result, nil
+			}
+			result = append(result, mediaGroups)
+		}
+	}
 }
 
 func (s *Service) produceAccounts(ctx context.Context, accounts map[string]domain.Account) <-chan domain.Account {
@@ -138,7 +228,6 @@ func (s *Service) fetchReportsWorker(
 			select {
 			case generalBondReportsCh <- reportJob{
 				GeneralBondReport: generalBondReports,
-				AccountID:         account.ID,
 			}:
 			case <-ctx.Done():
 				return
@@ -153,7 +242,6 @@ func (s *Service) renderReportsWorker(
 	generalBondReportsCh <-chan reportJob,
 	errCh chan<- error,
 	reportCh chan<- []*dto.MediaGroup,
-	chatID int,
 ) {
 	for {
 		select {
@@ -165,9 +253,7 @@ func (s *Service) renderReportsWorker(
 			}
 			reportsInByte, err := presenter.GenerateTablePNG(ctx,
 				s.logger,
-				&genralBondReportWithAccount.GeneralBondReport,
-				chatID,
-				genralBondReportWithAccount.AccountID)
+				&genralBondReportWithAccount.GeneralBondReport)
 			if err != nil {
 				select {
 				case errCh <- e.WrapIfErr("failed to GenerateTablePNG", err):
@@ -204,7 +290,7 @@ func (s *Service) processAccount(ctx context.Context, chatID int, account domain
 		if err != nil {
 			return generalbondreport.GeneralBondReports{}, e.WrapIfErr("failed to update operations", err)
 		}
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
 			return generalbondreport.GeneralBondReports{}, e.WrapIfErr("failed to get portfolio from tinkoff", err)
 		}
@@ -344,7 +430,7 @@ func (s *Service) processBondPosition(ctx context.Context,
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to create new report lines", err)
 		}
 		// Обрабатываем операции и получаем открытые позиции по данной бумаге
-		resultBondPosition, err := s.Helpers.ReportProcessor.ProcessOperations(ctx, reporLines)
+		resultBondPosition, err := reporting.ProcessOperations(ctx, reporLines)
 		if err != nil {
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to process operation", err)
 		}
@@ -370,14 +456,16 @@ func (s *Service) processBondPosition(ctx context.Context,
 			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to get specifications from moex to buy now", err)
 		}
 
-		bondReport, err := s.Helpers.GeneralBondReportProcessor.GetGeneralBondReportPosition(
-			ctx,
+		bondReport := generalbondreport.GeneralBondReportPosition{}
+		err = bondReport.CreateGeneralBondReportPosition(
 			resultBondPosition.CurrentPositions,
 			totalAmount,
 			moexBuyDateData,
-			moexNowData, firstBuyDate)
+			moexNowData,
+			firstBuyDate,
+		)
 		if err != nil {
-			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to get general bond report position", err)
+			return generalbondreport.GeneralBondReportPosition{}, e.WrapIfErr("failed to create general bond report position", err)
 		}
 		return bondReport, nil
 	}
@@ -395,4 +483,30 @@ func (s *Service) addBondReport(generalBondReports *generalbondreport.GeneralBon
 		tickerTimeKey := generalbondreport.NewTickerTimeKey(bondReport.Ticker, bondReport.BuyDate)
 		generalBondReports.RubBondsReport[tickerTimeKey] = bondReport
 	}
+}
+
+func (s *Service) handleProduceError(
+	ctx context.Context,
+	reportKind, chatIDStr, traceID string,
+	errCode dto.ErrorCode,
+	userMsg string,
+	logMsg string,
+	cause error,
+) error {
+	wrappedErr := e.WrapIfErr(logMsg, cause)
+
+	s.logger.ErrorContext(ctx, logMsg, slog.Any("error", wrappedErr))
+
+	if err := s.Producer.PublishFailedBondReportWithPng(
+		ctx,
+		reportKind,
+		chatIDStr,
+		traceID,
+		string(errCode),
+		userMsg,
+	); err != nil {
+		return e.WrapIfErr("failed to publish failed data", err)
+	}
+
+	return nil
 }

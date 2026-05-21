@@ -2,3 +2,10 @@ moexHost: "iss.moex.com"
 clients:
   moexApiAppClient:
     moexApiAppHost: "0.0.0.0"
+timeouts:
+  http_read_header_timeout: 10s
+  http_read_timeout: 10s
+  http_write_timeout: 10s
+  http_idle_timeout: 60s
+  http_shutdown_timeout: 7s
+  request_timeout: 5s

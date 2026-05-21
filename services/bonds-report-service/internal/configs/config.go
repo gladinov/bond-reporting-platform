@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -20,6 +21,19 @@ type Config struct {
 	WorkersNubmer             int          `yaml:"workersNumber"`
 	Clients                   Clients      `yaml:"clients"`
 	PostgresHost              PostgresHost `yaml:"postgresHost"`
+	Kafka                     Kafka
+	Timeouts                  Timeouts `yaml:"timeouts"`
+}
+
+type Timeouts struct {
+	HTTPReadHeaderTimeout time.Duration `yaml:"http_read_header_timeout"`
+	HTTPReadTimeout       time.Duration `yaml:"http_read_timeout"`
+	HTTPWriteTimeout      time.Duration `yaml:"http_write_timeout"`
+	HTTPIdleTimeout       time.Duration `yaml:"http_idle_timeout"`
+	HTTPShutdownTimeout   time.Duration `yaml:"http_shutdown_timeout"`
+	RequestTimeout        time.Duration `yaml:"request_timeout"`
+	AppCloseTimeout       time.Duration `yaml:"app_close_timeout"`
+	DBConnectTimeout      time.Duration `yaml:"db_connect_timeout"`
 }
 
 type Clients struct {
@@ -65,6 +79,15 @@ func (b *BondReportServiceApp) GetBondReportServiceAppAddress() string {
 	return getAddress(b.Host, b.Port)
 }
 
+type Kafka struct {
+	Host string `env:"KAFKA_HOST" env-required:"true"`
+	Port string `env:"KAFKA_PORT" env-required:"true"`
+}
+
+func (k *Kafka) GetKafkaAddress() string {
+	return getAddress(k.Host, k.Port)
+}
+
 type PostgresHost struct {
 	Host     string `env:"POSTGRES_HOST" env-required:"true"`
 	User     string `env:"POSTGRES_USER" env-required:"true"`
@@ -72,7 +95,7 @@ type PostgresHost struct {
 	Dbname   string `env:"POSTGRES_DB" env-required:"true"`
 	Port     string `env:"POSTGRES_SERVICE_PORT" env-required:"true"`
 	PgUser   string `env:"PGUSER" env-required:"true"`
-	SslMode  string `yaml:"sslmode"`
+	SslMode  string `yaml:"sslmode" env:"POSTGRES_SSLMODE" env-default:"disable"`
 }
 
 func (p *PostgresHost) GetStringHost() (string, error) {
@@ -97,6 +120,32 @@ func (p *PostgresHost) GetStringHost() (string, error) {
 		p.Password,
 		p.Dbname,
 		p.Port,
+		p.SslMode)
+	return host, nil
+}
+
+func (p *PostgresHost) GetDSN() (string, error) {
+	if p.Host == "" {
+		return "", errors.New("empty host in config")
+	}
+	if p.User == "" {
+		return "", errors.New("empty user in config")
+	}
+	if p.Password == "" {
+		return "", errors.New("empty password in config")
+	}
+	if p.Dbname == "" {
+		return "", errors.New("empty dbname in config")
+	}
+	if p.Port == "" {
+		return "", errors.New("empty port in config")
+	}
+	host := fmt.Sprintf("postgres://%s:%s@%s:%v/%s?sslmode=%s",
+		p.User,
+		p.Password,
+		p.Host,
+		p.Port,
+		p.Dbname,
 		p.SslMode)
 	return host, nil
 }

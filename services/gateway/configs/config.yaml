@@ -1,0 +1,12 @@
+dbType: "postgreSQL" # "postgreSQL" , "SQLite"
+storageSQLLitePath: "/data/sqlite/storage.db"
+postgresHost:
+  sslmode: "disable"
+redis:
+  db: 0
+  max_retries: 5
+  dial_timeout: 10s
+  timeout: 5s
+
+
+

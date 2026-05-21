@@ -1,8 +1,6 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	"bonds-report-service/internal/application/presenter"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -38,7 +36,7 @@ func (s *Service) GetPortfolioStructureForEachAccount(ctx context.Context) (_ do
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	response := domain.PortfolioStructureForEachAccountResponce{}
 	if err != nil {
 		return domain.PortfolioStructureForEachAccountResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
@@ -50,7 +48,7 @@ func (s *Service) GetPortfolioStructureForEachAccount(ctx context.Context) (_ do
 	workers := s.WorkersNumber
 	var wg sync.WaitGroup
 	pipeline := NewPipeline(ctxWorkers, cancel, errCh)
-	portfolioStructsCh := make(chan string, workers*2)
+	portfolioStructsCh := make(chan domain.PortfolioStructure, workers*2)
 
 	produceAccountCh := s.produceAccounts(ctxWorkers, accounts)
 
@@ -85,9 +83,9 @@ loop:
 	return response, nil
 }
 
-func (s *Service) portfolioStructureWorker(p *pipeline, accountCh <-chan domain.Account, reportCh chan<- string) {
+func (s *Service) portfolioStructureWorker(p *pipeline, accountCh <-chan domain.Account, reportCh chan<- domain.PortfolioStructure) {
 	for account := range accountCh {
-		report, err := s.getPortfolioStructure(p.ctx, account)
+		portfolioStructure, err := s.getPortfolioStructure(p.ctx, account)
 		if err != nil {
 			p.sendErr(e.WrapIfErr("cant' get portfolio structure", err))
 			return
@@ -95,33 +93,35 @@ func (s *Service) portfolioStructureWorker(p *pipeline, accountCh <-chan domain.
 		select {
 		case <-p.ctx.Done():
 			return
-		case reportCh <- report:
+		case reportCh <- portfolioStructure:
 		}
 
 	}
 }
 
-func (s *Service) getPortfolioStructure(ctx context.Context, account domain.Account) (_ string, err error) {
+func (s *Service) getPortfolioStructure(ctx context.Context, account domain.Account) (_ domain.PortfolioStructure, err error) {
 	const op = "service.getPortfolioStructure"
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return domain.PortfolioStructure{}, ctx.Err()
 	default:
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
-			return "", e.WrapIfErr("cant' get portfolio from Tinkoff", err)
+			return domain.PortfolioStructure{}, e.WrapIfErr("cant' get portfolio from Tinkoff", err)
 		}
 		positions := portfolio.Positions
 
 		potfolioStructure, err := s.Helpers.DividerByAssetType.DivideByType(ctx, positions)
 		if err != nil {
-			return "", e.WrapIfErr("couldnot divide by type", err)
+			return domain.PortfolioStructure{}, e.WrapIfErr("couldnot divide by type", err)
 		}
-		response := presenter.ResponsePortfolioStructure(ctx, s.logger, potfolioStructure, dto.EachPortf, account.Name)
 
-		return response, nil
+		return domain.PortfolioStructure{
+			AccountName: account.Name,
+			Portfolio:   potfolioStructure,
+		}, nil
 	}
 }

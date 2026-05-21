@@ -6,11 +6,20 @@ import (
 )
 
 type PortfolioStructureForEachAccountResponce struct {
-	PortfolioStructures []string
+	PortfolioStructures []PortfolioStructure
 }
 
 type UnionPortfolioStructureResponce struct {
-	Report string
+	Portfolio *PortfolioByTypeAndCurrency
+}
+
+type UnionPortfolioStructureWithSberResponce struct {
+	Portfolio *PortfolioByTypeAndCurrency
+}
+
+type PortfolioStructure struct {
+	AccountName string
+	Portfolio   *PortfolioByTypeAndCurrency
 }
 
 type UsdResponce struct {

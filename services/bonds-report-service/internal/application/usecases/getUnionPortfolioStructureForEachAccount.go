@@ -1,9 +1,7 @@
 package usecases
 
 import (
-	"bonds-report-service/internal/application/dto"
-	unionportf "bonds-report-service/internal/application/helpers/unionPortf"
-	"bonds-report-service/internal/application/presenter"
+	portfolio "bonds-report-service/internal/application/services/portfolio"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/utils/logging"
 	"context"
@@ -17,7 +15,7 @@ func (s *Service) GetUnionPortfolioStructureForEachAccount(ctx context.Context) 
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	response := domain.UnionPortfolioStructureResponce{}
 	if err != nil {
 		return domain.UnionPortfolioStructureResponce{}, e.WrapIfErr("cant' get accounts from tinkoff", err)
@@ -26,12 +24,12 @@ func (s *Service) GetUnionPortfolioStructureForEachAccount(ctx context.Context) 
 	if err != nil {
 		return domain.UnionPortfolioStructureResponce{}, e.WrapIfErr("cant' get union portfolio structure", err)
 	}
-	response.Report = unionPortfolioStructure
+	response.Portfolio = unionPortfolioStructure
 
 	return response, nil
 }
 
-func (s *Service) getUnionPortfolioStructure(ctx context.Context, accounts map[string]domain.Account) (_ string, err error) {
+func (s *Service) getUnionPortfolioStructure(ctx context.Context, accounts map[string]domain.Account) (_ *domain.PortfolioByTypeAndCurrency, err error) {
 	const op = "service.getUnionPortfolioStructure"
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
@@ -80,10 +78,10 @@ loop:
 	for {
 		select {
 		case <-ctxWorkers.Done():
-			return "", ctxWorkers.Err()
+			return nil, ctxWorkers.Err()
 		case er := <-errCh:
 			cancel()
-			return "", er
+			return nil, er
 		case portfolioStructure, ok := <-portfolioStructCh:
 			if !ok {
 				break loop
@@ -91,16 +89,14 @@ loop:
 			positionsList = append(positionsList, portfolioStructure)
 		}
 	}
-	unionPositions := unionportf.UnionPortf(positionsList)
+	unionPositions := portfolio.UnionPortf(positionsList)
 
-	vizualizeUnionPositions := presenter.ResponsePortfolioStructure(ctx, s.logger, unionPositions, dto.UnionPortf, "")
-
-	return vizualizeUnionPositions, nil
+	return unionPositions, nil
 }
 
 func (s *Service) portfolioWorkers(p *pipeline, in <-chan domain.Account, out chan<- domain.Portfolio) {
 	for account := range in {
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(p.ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(p.ctx, account)
 		if err != nil {
 			p.sendErr(e.WrapIfErr("can't get portfolio from Tinkoff", err))
 			return

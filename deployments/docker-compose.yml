@@ -1,16 +1,19 @@
 
 services:
-  myapp:
-    build: ../services/myapp
-    container_name: myapp
+  gateway:
+    build: ../services/gateway
+    container_name: gateway
     restart: unless-stopped
     depends_on:
       postgres-user-db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       ENV: ${ENV}
+      TELEGRAM_HOST: ${TELEGRAM_HOST}
       LOCAL_BOT_TOKEN: ${LOCAL_BOT_TOKEN}
       ROOT_PATH: "/usr/local/src"
       CONFIG_PATH: "/configs/config.yaml"
@@ -28,11 +31,12 @@ services:
       BOND_REPORT_SERVICE_PORT: ${BOND_REPORT_SERVICE_PORT}
       TINKOFF_API_HOST: tinkoffapi_app
       TINKOFF_API_PORT: ${TINKOFF_API_PORT}
-
+      KAFKA_PORT: 9092
+      KAFKA_HOST: kafka
     volumes:
-      - ../services/myapp/configs/config.yaml:/usr/local/src/configs/config.yaml:ro
+      - ../services/gateway/configs/config.yaml:/usr/local/src/configs/config.yaml:ro
     ports:
-      - "${MYAPP_PORT}:8080"
+      - "${GATEWAY_PORT}:8080"
     networks:
       - myapp_network
 
@@ -78,6 +82,63 @@ services:
       timeout: 10s
       retries: 5
 
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+    - "${KAFKA_EXTERNAL_PORT}:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - myapp_network
+
+
+  kafka-init:
+    image: apache/kafka:4.1.1
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - myapp_network
+    restart: "no"
+    command:
+      - bash
+      - -c
+      - |
+        echo "Waiting for Kafka..."
+        until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+          sleep 2
+        done
+
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic report.requested --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic report.generated --partitions 1 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic report.failed --partitions 1 --replication-factor 1
+
+        echo "Kafka topics created"
+
+
   migrator:
     build: ../tools/migrator
     container_name: migrator
@@ -97,18 +158,23 @@ services:
       PGUSER: ${USERS_PGUSER}
 
     volumes:
-      - ../migrations/myapp/postgres:/usr/local/src/migrations:ro
+      - ../migrations/gateway/postgres:/usr/local/src/migrations:ro
       - ../tools/migrator/config/config.yaml:/usr/local/src/config/config.yaml:ro
     networks:
       - myapp_network
 
   bond-report-service:
-    build: ../services/bonds-report-service
+    build:
+      context: ../services/bonds-report-service
+      dockerfile: deployments/docker/app.Dockerfile
     restart: unless-stopped
     stop_grace_period: 15s
-    container_name: bond-report-service-app
     depends_on:
       postgres-service-db:
+        condition: service_healthy
+      bond-report-migrator:
+        condition: service_completed_successfully
+      kafka:
         condition: service_healthy
     environment:
       ENV: ${ENV}
@@ -128,6 +194,8 @@ services:
       TINKOFF_API_PORT: ${TINKOFF_API_PORT}
       MOEX_API_HOST: moex_app
       MOEX_API_PORT: ${MOEX_API_PORT}
+      KAFKA_PORT: 9092
+      KAFKA_HOST: kafka
     volumes:
       - ../services/bonds-report-service/configs/config.yaml:/usr/local/src/configs/config.yaml:ro
       - ../services/bonds-report-service/configs/sber.yaml:/usr/local/src/configs/sber.yaml:ro
@@ -136,9 +204,30 @@ services:
     networks:
       - myapp_network
 
+  bond-report-migrator:
+    build:
+      context: ../services/bonds-report-service
+      dockerfile: deployments/docker/migrator.Dockerfile
+    restart: no
+    depends_on:
+      postgres-service-db:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV}
+      MIGRATIONS_PATH: "/migrations"
+      POSTGRES_HOST: postgres-service-db
+      POSTGRES_SERVICE_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_SERVICE_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_SERVICE_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_SERVICE_DB}
+      PGUSER: ${SERVICE_PGUSER}
+    volumes:
+      - ../services/bonds-report-service/deployments/migrations:/migrations:ro
+    networks:
+      - myapp_network
+
   postgres-service-db:
     image: postgres:latest
-    container_name: service_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_SERVICE_USER}
@@ -213,7 +302,26 @@ services:
       - "${MOEX_API_PORT}:8083"
     networks:
       - myapp_network
-
+  
+  notification_service:
+    build: ../services/notification-service
+    container_name: notification-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      ENV: ${ENV}
+      TELEGRAM_HOST: ${TELEGRAM_HOST}
+      LOCAL_BOT_TOKEN: ${LOCAL_BOT_TOKEN}
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT}
+      NOTIFICATION_SERVICE_HOST: "localhost"
+      KAFKA_PORT: 9092
+      KAFKA_HOST: kafka
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT}:8085"
+    networks:
+      - myapp_network
   
 
 networks:

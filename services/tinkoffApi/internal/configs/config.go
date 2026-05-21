@@ -24,10 +24,21 @@ type Config struct {
 	TinkoffApiAppPort string          `env:"TINKOFF_API_PORT" env-required:"true"`
 	TinkoffApiAppHost string          `yaml:"TinkoffApiAppHost"`
 	RedisHTTPServer   RedisHTTPServer `yaml:"redisHTTP"`
+	Timeouts          Timeouts        `yaml:"timeouts"`
 }
 
 func (c *Config) GetTinkoffAppAddress() string {
 	return getAddress(c.TinkoffApiAppHost, c.TinkoffApiAppPort)
+}
+
+type Timeouts struct {
+	HTTPReadHeaderTimeout time.Duration `yaml:"http_read_header_timeout"`
+	HTTPReadTimeout       time.Duration `yaml:"http_read_timeout"`
+	HTTPWriteTimeout      time.Duration `yaml:"http_write_timeout"`
+	HTTPIdleTimeout       time.Duration `yaml:"http_idle_timeout"`
+	HTTPShutdownTimeout   time.Duration `yaml:"http_shutdown_timeout"`
+	RequestTimeout        time.Duration `yaml:"request_timeout"`
+	AppCloseTimeout       time.Duration `yaml:"app_close_timeout"`
 }
 
 type RedisHTTPServer struct {

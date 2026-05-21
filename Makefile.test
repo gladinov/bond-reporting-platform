@@ -1,0 +1,38 @@
+# =========================
+# Variables
+# =========================
+
+COMPOSE_TEST_FILE = deployments/docker-compose.test.yml
+ENV_TEST_FILE = deployments/env/test.env
+
+# =========================
+# Docker: production
+# =========================
+
+test-up:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) up -d
+
+test-build-up:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) up -d --build
+
+test-down:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v
+
+test-up-services:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) up -d moex_app cbr_app tinkoffapi_app bond-report-service gateway notification_service telegram-mock
+
+test-down-services:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v moex_app cbr_app tinkoffapi_app bond-report-service gateway notification_service telegram-mock
+
+test-build-up-services:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v moex_app cbr_app tinkoffapi_app bond-report-service gateway notification_service telegram-mock
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) up -d --build moex_app cbr_app tinkoffapi_app bond-report-service gateway notification_service telegram-mock
+
+test-build-up-tg-mock:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v telegram-mock 
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) up -d --build telegram-mock 
+
+test-down-tg-mock:
+	docker compose -f $(COMPOSE_TEST_FILE) --env-file $(ENV_TEST_FILE) down -v telegram-mock 
+	 

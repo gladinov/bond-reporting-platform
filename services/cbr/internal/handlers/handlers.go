@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"cbr/internal/service"
-	"context"
 	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -32,8 +30,6 @@ func (h *Handlers) GetAllCurrencies(c echo.Context) error {
 	const op = "handlers.GetAllCurrencies"
 
 	ctx := c.Request().Context()
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 
 	var currencyRequest CurrencyRequest
 

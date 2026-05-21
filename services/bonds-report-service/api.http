@@ -1,0 +1,50 @@
+@host = http://localhost:8084
+@chat_id = 123456789
+@trace_id = 00000000-0000-4000-8000-000000000001
+
+### Accounts list
+GET {{host}}/bondReportService/accounts
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Update bond reports by FIFO
+GET {{host}}/bondReportService/getBondReportsByFifo
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### USD rate
+GET {{host}}/bondReportService/getUSD
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Bond reports
+GET {{host}}/bondReportService/getBondReports
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Portfolio structure
+GET {{host}}/bondReportService/getPortfolioStructure
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Union portfolio structure
+GET {{host}}/bondReportService/getUnionPortfolioStructure
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Union portfolio structure with Sber
+GET {{host}}/bondReportService/getUnionPortfolioStructureWithSber
+Accept: application/json
+X-Chat-Id: {{chat_id}}
+X-Trace-Id: {{trace_id}}
+
+### Missing chat header returns 400
+GET {{host}}/bondReportService/accounts
+Accept: application/json
+X-Trace-Id: {{trace_id}}

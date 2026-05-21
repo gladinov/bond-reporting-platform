@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gladinov/cryptotoken"
-
 	"github.com/gladinov/valuefromcontext"
 
 	"github.com/gladinov/traceidgenerator"
@@ -16,7 +14,6 @@ import (
 	httpheaders "github.com/gladinov/contracts/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/redis/go-redis/v9"
 )
 
 func (h *Handlers) ContextHeaderTraceIdMiddleWare(next echo.HandlerFunc) echo.HandlerFunc {
@@ -109,20 +106,16 @@ func (h *Handlers) CheckTokenFromRedisByChatIDMiddleWare(next echo.HandlerFunc) 
 		}
 
 		ctx := c.Request().Context()
-		tokenInBase64, err := h.redis.Get(ctx, chatID).Result()
+		tokenInBase64, err := h.tokenStorage.GetToken(ctx, chatID)
 		switch err {
 		case nil:
-		case redis.Nil:
+		case ErrTokenNotFound:
 			return echo.NewHTTPError(http.StatusUnauthorized, errNoTokenInRedis)
 		default:
 			return echo.NewHTTPError(http.StatusServiceUnavailable, errRedisDoNotAnswer)
 		}
 
-		encryptedToken, err := cryptotoken.GetEncryptedTokenFromBase64(tokenInBase64)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, errHeaderRequired)
-		}
-		token, err := cryptotoken.DecryptToken(&encryptedToken, h.tokenCrypter.KeyInBase64)
+		token, err := h.tokenDecrypter.DecryptTokenFromBase64(tokenInBase64)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, errInvalidAuthFormat)
 		}
@@ -143,11 +136,7 @@ func (h *Handlers) CheckTokenFromHeadersMiddleWare(next echo.HandlerFunc) echo.H
 			err = errHeaderRequired
 			return echo.NewHTTPError(http.StatusUnauthorized, err)
 		}
-		encryptedToken, err := cryptotoken.GetEncryptedTokenFromBase64(tokenInBase64)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, errHeaderRequired)
-		}
-		token, err := cryptotoken.DecryptToken(&encryptedToken, h.tokenCrypter.KeyInBase64)
+		token, err := h.tokenDecrypter.DecryptTokenFromBase64(tokenInBase64)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, errInvalidAuthFormat)
 		}

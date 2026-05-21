@@ -17,6 +17,7 @@ import (
 )
 
 func TestDoRequest_Realistic(t *testing.T) {
+	moexHost := "iss.moex.com"
 	ctx := context.Background()
 	logg := slog.New(slog.NewTextHandler(io.Discard, nil))
 
@@ -31,7 +32,7 @@ func TestDoRequest_Realistic(t *testing.T) {
 
 		transport := &Transport{
 			logger: logg,
-			host:   "cbr.ru", // TODO: Исправить значения "cbr.ru" на значения хочта moexApi
+			host:   moexHost,
 			client: &client,
 		}
 		body, err := transport.DoRequest(ctx, "/mock", url.Values{})
@@ -44,7 +45,7 @@ func TestDoRequest_Realistic(t *testing.T) {
 			return nil, errors.New("network unreachable")
 		})
 
-		transport := &Transport{logger: logg, host: "cbr.ru", client: &client}
+		transport := &Transport{logger: logg, host: moexHost, client: &client}
 		_, err := transport.DoRequest(ctx, "/mock", url.Values{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "network unreachable")
@@ -70,7 +71,7 @@ func TestDoRequest_Realistic(t *testing.T) {
 			}, nil
 		})
 
-		transport := &Transport{logger: logg, host: "cbr.ru", client: &client}
+		transport := &Transport{logger: logg, host: moexHost, client: &client}
 		_, err := transport.DoRequest(ctx, "/mock", url.Values{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "could not read body")

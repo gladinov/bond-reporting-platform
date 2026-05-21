@@ -1,20 +1,14 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"moex/internal/models"
 	"moex/internal/service"
 	"net/http"
-	"time"
 
 	"github.com/gladinov/e"
 	"github.com/labstack/echo/v4"
-)
-
-const (
-	defaultTimeout = 10 * time.Second
 )
 
 var (
@@ -37,8 +31,6 @@ func NewHandlers(logger *slog.Logger, service service.ServiceClient) *Handlers {
 func (h *Handlers) GetSpecifications(c echo.Context) error {
 	const op = "handlers.GetSpecifications"
 	ctx := c.Request().Context()
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
-	defer cancel()
 
 	logg := h.logger.With(slog.String("op", op))
 	logg.DebugContext(ctx, "start")

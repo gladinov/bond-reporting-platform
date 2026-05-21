@@ -1,9 +1,7 @@
 package usecases
 
 import (
-	tinkoffHelper "bonds-report-service/internal/application/helpers/tinkoff"
 	"bonds-report-service/internal/application/ports"
-	"bonds-report-service/internal/infrastructure/sber"
 	"log/slog"
 	"time"
 )
@@ -39,13 +37,13 @@ const (
 type ExternalApis struct {
 	Moex ports.MoexClient
 	Cbr  ports.CbrClient
-	Sber *sber.Client
+	Sber ports.SberClient
 }
 
 func NewExternalApis(
 	moex ports.MoexClient,
 	cbr ports.CbrClient,
-	sber *sber.Client,
+	sber ports.SberClient,
 ) *ExternalApis {
 	return &ExternalApis{
 		Moex: moex,
@@ -55,41 +53,32 @@ func NewExternalApis(
 }
 
 type Helpers struct {
-	BondReportProcessor        ports.BondReportProcessor
-	CbrGetter                  ports.CbrCurrencyGetter
-	GeneralBondReportProcessor ports.GeneralBondReportProcessor
-	MoexSpecificationGetter    ports.MoexSpecificationGetter
-	ReportProcessor            ports.ReportProcessor
-	TinkoffHelper              *tinkoffHelper.TinkoffHelper
-	OperationsUpdater          ports.OperationsUpdater
-	PositionProcessor          ports.PositionProcessor
-	ReportLineBuilder          ports.ReportLineBuilder
-	DividerByAssetType         ports.DividerByAssetType
+	CbrGetter               CbrCurrencyGetter
+	MoexSpecificationGetter MoexSpecificationGetter
+	TinkoffProvider         TinkoffProvider
+	OperationsUpdater       OperationsUpdater
+	PositionProcessor       PositionProcessor
+	ReportLineBuilder       ReportLineBuilder
+	DividerByAssetType      DividerByAssetType
 }
 
 func NewHelpers(
-	bondReportProcessor ports.BondReportProcessor,
-	cbrGetter ports.CbrCurrencyGetter,
-	generalBondReportProcessor ports.GeneralBondReportProcessor,
-	moexSpecificationGetter ports.MoexSpecificationGetter,
-	reportProcessor ports.ReportProcessor,
-	tinkoffHelper *tinkoffHelper.TinkoffHelper,
-	operationsUpdater ports.OperationsUpdater,
-	positionProcessor ports.PositionProcessor,
-	reportLineBuilder ports.ReportLineBuilder,
-	dividerByAssetType ports.DividerByAssetType,
+	cbrGetter CbrCurrencyGetter,
+	moexSpecificationGetter MoexSpecificationGetter,
+	tinkoffProvider TinkoffProvider,
+	operationsUpdater OperationsUpdater,
+	positionProcessor PositionProcessor,
+	reportLineBuilder ReportLineBuilder,
+	dividerByAssetType DividerByAssetType,
 ) *Helpers {
 	return &Helpers{
-		BondReportProcessor:        bondReportProcessor,
-		CbrGetter:                  cbrGetter,
-		GeneralBondReportProcessor: generalBondReportProcessor,
-		MoexSpecificationGetter:    moexSpecificationGetter,
-		ReportProcessor:            reportProcessor,
-		TinkoffHelper:              tinkoffHelper,
-		OperationsUpdater:          operationsUpdater,
-		PositionProcessor:          positionProcessor,
-		ReportLineBuilder:          reportLineBuilder,
-		DividerByAssetType:         dividerByAssetType,
+		CbrGetter:               cbrGetter,
+		MoexSpecificationGetter: moexSpecificationGetter,
+		TinkoffProvider:         tinkoffProvider,
+		OperationsUpdater:       operationsUpdater,
+		PositionProcessor:       positionProcessor,
+		ReportLineBuilder:       reportLineBuilder,
+		DividerByAssetType:      dividerByAssetType,
 	}
 }
 
@@ -99,6 +88,7 @@ type Service struct {
 	External      *ExternalApis
 	Helpers       *Helpers
 	Storage       ports.Storage
+	Producer      Producer
 	now           func() time.Time
 }
 
@@ -108,6 +98,7 @@ func NewService(
 	externalApis *ExternalApis,
 	helpers *Helpers,
 	storage ports.Storage,
+	producer Producer,
 ) *Service {
 	return &Service{
 		logger:        logger,
@@ -115,6 +106,7 @@ func NewService(
 		External:      externalApis,
 		Helpers:       helpers,
 		Storage:       storage,
+		Producer:      producer,
 		now:           time.Now,
 	}
 }

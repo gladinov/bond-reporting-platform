@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"bonds-report-service/internal/application/services/reporting"
 	"bonds-report-service/internal/domain"
 	"bonds-report-service/internal/domain/report"
 	"bonds-report-service/internal/utils/logging"
@@ -15,7 +16,7 @@ func (s *Service) GetBondReportsByFifo(ctx context.Context, chatID int) (err err
 
 	defer logging.LogOperation_Debug(ctx, s.logger, op, &err)()
 
-	accounts, err := s.Helpers.TinkoffHelper.TinkoffGetAccounts(ctx)
+	accounts, err := s.Helpers.TinkoffProvider.TinkoffGetAccounts(ctx)
 	if err != nil {
 		return e.WrapIfErr("get accounts error", err)
 	}
@@ -89,7 +90,7 @@ func (s *Service) processAccountForBondReportByFifo(ctx context.Context, chatID 
 			return e.WrapIfErr("update operation error", err)
 		}
 
-		portfolio, err := s.Helpers.TinkoffHelper.TinkoffGetPortfolio(ctx, account)
+		portfolio, err := s.Helpers.TinkoffProvider.TinkoffGetPortfolio(ctx, account)
 		if err != nil {
 			return e.WrapIfErr("tinkoffGetPortfolio err", err)
 		}
@@ -211,7 +212,7 @@ func (s *Service) processPositionsForBondReportByFifo(ctx context.Context, posit
 			return report.Report{}, e.WrapIfErr("failed to create new report lines", err)
 		}
 
-		resultBondPosition, err := s.Helpers.ReportProcessor.ProcessOperations(ctx, reporLines)
+		resultBondPosition, err := reporting.ProcessOperations(ctx, reporLines)
 		if err != nil {
 			return report.Report{}, e.WrapIfErr("failed to process operation", err)
 		}
@@ -227,8 +228,8 @@ func (s *Service) processPositionsForBondReportByFifo(ctx context.Context, posit
 			return report.Report{}, e.WrapIfErr("failed to get specifications from moex to buy now", err)
 		}
 
-		bondReport, err := s.Helpers.BondReportProcessor.CreateBondReport(
-			ctx,
+		bondReport, err := reporting.CreateBondReport(
+			s.now(),
 			resultBondPosition.CurrentPositions,
 			moexBuyDateData,
 			moexNowData,

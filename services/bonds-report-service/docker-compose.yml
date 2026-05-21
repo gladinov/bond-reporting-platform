@@ -1,12 +1,18 @@
 services:
   bond-report-service:
-    build: .
+    build:
+      context: .
+      dockerfile: deployments/docker/app.Dockerfile
     restart: unless-stopped
     depends_on:
-      - postgres-service-db
+      postgres-service-db:
+        condition: service_healthy
+      bond-report-migrator:
+        condition: service_completed_successfully
     environment:
       ROOT_PATH: "/usr/local/src"
       POSTGRES_HOST: postgres-service-db
+      POSTGRES_SERVICE_PORT: 5432
       POSTGRES_PASSWORD: ${BOND_REPORT_SERVICE_DB_PASSWORD}
       POSTGRES_DB: ${BOND_REPORT_SERVICE_POSTGRES_DB}
       POSTGRES_USER: ${BOND_REPORT_SERVICE_POSTGRES_USER}
@@ -18,9 +24,29 @@ services:
     networks:
       - myapp_network
 
+  bond-report-migrator:
+    build:
+      context: .
+      dockerfile: deployments/docker/migrator.Dockerfile
+    restart: no
+    depends_on:
+      postgres-service-db:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV}
+      MIGRATIONS_PATH: "/migrations"
+      POSTGRES_HOST: postgres-service-db
+      POSTGRES_SERVICE_PORT: 5432
+      POSTGRES_PASSWORD: ${BOND_REPORT_SERVICE_DB_PASSWORD}
+      POSTGRES_DB: ${BOND_REPORT_SERVICE_POSTGRES_DB}
+      POSTGRES_USER: ${BOND_REPORT_SERVICE_POSTGRES_USER}
+    volumes:
+      - ./deployments/migrations:/migrations:ro
+    networks:
+      - myapp_network
+
   postgres-service-db:
     image: postgres:latest
-    container_name: service_postgres
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${BOND_REPORT_SERVICE_DB_PASSWORD}
@@ -32,6 +58,11 @@ services:
       - "5432:5432"
     networks:
       - myapp_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 
 networks:
